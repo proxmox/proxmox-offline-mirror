@@ -52,10 +52,11 @@ impl<'a> VerificationHelper for Helper<'a> {
 
         if good {
             Ok(()) // Good signature.
-        } else if errors.len() > 1 {
-            Err(anyhow::anyhow!("encountered {} errors", errors.len()))
         } else {
-            Err(anyhow::anyhow!("Signature verification failed"))
+            for err in &errors {
+                eprintln!("\t{err}");
+            }
+            Err(anyhow::anyhow!("encountered {} error(s)", errors.len()))
         }
     }
 }
@@ -76,12 +77,7 @@ pub(crate) fn verify_signature<'msg>(
         msg.to_vec()
     } else {
         let mut verified = Vec::new();
-        let mut verifier = VerifierBuilder::from_bytes(msg)?
-            .with_policy(&policy, None, helper)
-            .map_err(|err| {
-                println!("{:#?}", err);
-                err
-            })?;
+        let mut verifier = VerifierBuilder::from_bytes(msg)?.with_policy(&policy, None, helper)?;
         let bytes = io::copy(&mut verifier, &mut verified)?;
         println!("{bytes} bytes verified");
         if !verifier.message_processed() {
