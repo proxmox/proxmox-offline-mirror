@@ -11,7 +11,8 @@ use proxmox_apt_mirror::{
     config::{MediaConfig, MirrorConfig},
     generate_repo_file_line,
     medium::{self},
-    types::MIRROR_ID_SCHEMA,
+    mirror,
+    types::{Snapshot, MIRROR_ID_SCHEMA},
 };
 
 use super::DEFAULT_CONFIG_PATH;
@@ -94,29 +95,37 @@ async fn status(config: Option<String>, id: String, _param: Value) -> Result<Val
 
     for (ref id, ref mirror) in state.mirrors {
         println!("\nMirror '{}'", id);
-        let path = Path::new(&medium_config.mountpoint);
-        let snapshots = medium::list_snapshots(path, id)?;
-        let repo_line = match snapshots.last() {
-            None => {
-                println!("no snapshots");
-                None
-            }
-            Some(last) => {
-                if let Some(first) = snapshots.first() {
-                    if first == last {
-                        println!("1 snapshot: '{last}'");
-                    } else {
-                        println!("{} snapshots: '{first}..{last}'", snapshots.len());
-                    }
-                    Some(generate_repo_file_line(path, id, mirror, last)?)
-                } else {
-                    None
+        let mirror_config: MirrorConfig = section_config.lookup("mirror", id)?;
+        let print_snapshots = |snapshots: &[Snapshot]| {
+            match (snapshots.first(), snapshots.last()) {
+                (Some(first), Some(last)) if first == last => {
+                    println!("\t1 snapshot: {}", first);
                 }
-            }
+                (Some(first), Some(last)) => {
+                    println!("\t{} snapshots: '{first}..{last}'", snapshots.len());
+                }
+                _ => {
+                    println!("\tNo snapshots.");
+                }
+            };
         };
-        println!("Original repository config: '{}'", mirror.repository);
-        if let Some(repo_line) = repo_line {
-            println!("Medium repository line: '{repo_line}'");
+
+        let mut source_snapshots = mirror::list_snapshots(&mirror_config)?;
+        source_snapshots.sort();
+        println!("Source:");
+        print_snapshots(&source_snapshots);
+        println!("\trepository config: '{}'", mirror.repository);
+
+        let path = Path::new(&medium_config.mountpoint);
+        let mut snapshots = medium::list_snapshots(path, id)?;
+        snapshots.sort();
+        println!("Medium:");
+        print_snapshots(&snapshots);
+        if let Some(last) = snapshots.last() {
+            println!(
+                "\trepository config: {}",
+                generate_repo_file_line(path, id, mirror, last)?
+            );
         }
     }
 
