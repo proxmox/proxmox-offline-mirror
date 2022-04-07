@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{bail, format_err, Error};
@@ -10,16 +10,17 @@ use proxmox_time::{epoch_i64, epoch_to_rfc3339_utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{self, MirrorConfig},
-    convert_repo_line,
+    config::{self, ConfigLockGuard, MediaConfig, MirrorConfig},
+    generate_repo_file_line,
+    mirror::pool,
     pool::Pool,
-    types::SNAPSHOT_REGEX,
+    types::{Snapshot, SNAPSHOT_REGEX},
 };
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct MirrorInfo {
-    repository: String,
-    architectures: Vec<String>,
+    pub repository: String,
+    pub architectures: Vec<String>,
 }
 
 impl From<&MirrorConfig> for MirrorInfo {
@@ -47,7 +48,74 @@ pub struct MediumState {
     pub last_sync: i64,
 }
 
-pub fn list_snapshots(medium_base: &Path, mirror: &str) -> Result<Vec<String>, Error> {
+pub struct MediumMirrorState {
+    pub synced: HashSet<String>,
+    pub source_only: HashSet<String>,
+    pub target_only: HashSet<String>,
+}
+
+fn get_mirror_state(config: &MediaConfig, state: &MediumState) -> MediumMirrorState {
+    let synced_mirrors: HashSet<String> = state
+        .mirrors
+        .iter()
+        .map(|(id, _mirror)| id.clone())
+        .collect();
+    let config_mirrors: HashSet<String> = config.mirrors.iter().cloned().collect();
+    let new_mirrors: HashSet<String> = config_mirrors
+        .difference(&synced_mirrors)
+        .cloned()
+        .collect();
+    let dropped_mirrors: HashSet<String> = synced_mirrors
+        .difference(&config_mirrors)
+        .cloned()
+        .collect();
+
+    MediumMirrorState {
+        synced: synced_mirrors,
+        source_only: new_mirrors,
+        target_only: dropped_mirrors,
+    }
+}
+
+fn lock(base: &Path) -> Result<ConfigLockGuard, Error> {
+    let mut lockfile = base.to_path_buf();
+    lockfile.push("mirror-state");
+    let lockfile = lockfile
+        .to_str()
+        .ok_or_else(|| format_err!("Couldn't convert lockfile path {lockfile:?})"))?;
+    config::lock_config(lockfile)
+}
+
+fn statefile(base: &Path) -> PathBuf {
+    let mut statefile = base.to_path_buf();
+    statefile.push(".mirror-state");
+    statefile
+}
+
+fn load_state(base: &Path) -> Result<Option<MediumState>, Error> {
+    let statefile = statefile(base);
+
+    if statefile.exists() {
+        let raw = file_get_contents(&statefile)?;
+        let state: MediumState = serde_json::from_slice(&raw)?;
+        Ok(Some(state))
+    } else {
+        Ok(None)
+    }
+}
+
+fn write_state(_lock: &ConfigLockGuard, base: &Path, state: &MediumState) -> Result<(), Error> {
+    replace_file(
+        &statefile(base),
+        &serde_json::to_vec(&state)?,
+        CreateOptions::default(),
+        true,
+    )?;
+
+    Ok(())
+}
+
+pub fn list_snapshots(medium_base: &Path, mirror: &str) -> Result<Vec<Snapshot>, Error> {
     if !medium_base.exists() {
         bail!("Medium mountpoint doesn't exist.");
     }
@@ -65,7 +133,7 @@ pub fn list_snapshots(medium_base: &Path, mirror: &str) -> Result<Vec<String>, E
                 return Ok(());
             }
 
-            list.push(snapshot.to_string());
+            list.push(snapshot.parse()?);
 
             Ok(())
         },
@@ -78,7 +146,7 @@ pub fn list_snapshots(medium_base: &Path, mirror: &str) -> Result<Vec<String>, E
 
 pub fn generate_repo_snippet(
     medium_base: &Path,
-    repositories: &HashMap<String, (&MirrorInfo, String)>,
+    repositories: &HashMap<String, (&MirrorInfo, Snapshot)>,
 ) -> Result<Vec<String>, Error> {
     let mut res = Vec::new();
     for (mirror_id, (mirror_info, snapshot)) in repositories {
@@ -92,51 +160,18 @@ pub fn generate_repo_snippet(
     Ok(res)
 }
 
-fn generate_repo_file_line(
-    medium_base: &Path,
-    mirror_id: &str,
-    mirror: &MirrorInfo,
-    snapshot: &str,
-) -> Result<String, Error> {
-    let mut snapshot_path = medium_base.to_path_buf();
-    snapshot_path.push(mirror_id);
-    snapshot_path.push(snapshot);
-    let snapshot_path = snapshot_path
-        .to_str()
-        .ok_or_else(|| format_err!("Failed to convert snapshot path to String"))?;
-
-    let mut repo = convert_repo_line(mirror.repository.clone())?;
-    repo.uris = vec![format!("file://{}", snapshot_path)];
-
-    repo.options
-        .push(proxmox_apt::repositories::APTRepositoryOption {
-            key: "check-valid-until".to_string(),
-            values: vec!["false".to_string()],
-        });
-
-    let mut res = Vec::new();
-    repo.write(&mut res)?;
-
-    let res = String::from_utf8(res)
-        .map_err(|err| format_err!("Couldn't convert repo line to String - {err}"))?;
-
-    Ok(res.trim_end().to_string())
-}
-
 pub fn gc(medium: &crate::config::MediaConfig) -> Result<(), Error> {
     let medium_base = Path::new(&medium.mountpoint);
     if !medium_base.exists() {
         bail!("Medium mountpoint doesn't exist.");
     }
 
-    let mut statefile = medium_base.to_path_buf();
-    statefile.push(".mirror-state");
+    let _lock = lock(medium_base)?;
 
-    let _lock = config::lock_config(&format!("{}/{}", medium.mountpoint, "mirror-state"))?;
+    println!("Loading state..");
+    let state = load_state(medium_base)?
+        .ok_or_else(|| format_err!("Cannot GC empty medium - no statefile found."))?;
 
-    println!("Loading state from {statefile:?}..");
-    let raw = file_get_contents(&statefile)?;
-    let state: MediumState = serde_json::from_slice(&raw)?;
     println!(
         "Last sync timestamp: {}",
         epoch_to_rfc3339_utc(state.last_sync)?
@@ -170,77 +205,19 @@ pub fn gc(medium: &crate::config::MediaConfig) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn status(medium: &crate::config::MediaConfig) -> Result<(), Error> {
+pub fn status(
+    medium: &crate::config::MediaConfig,
+) -> Result<(MediumState, MediumMirrorState), Error> {
     let medium_base = Path::new(&medium.mountpoint);
     if !medium_base.exists() {
         bail!("Medium mountpoint doesn't exist.");
     }
 
-    let mut statefile = medium_base.to_path_buf();
-    statefile.push(".mirror-state");
+    let state = load_state(medium_base)?
+        .ok_or_else(|| format_err!("No status available - statefile doesn't exist."))?;
+    let mirror_state = get_mirror_state(medium, &state);
 
-    println!("Loading state from {statefile:?}..");
-    let raw = file_get_contents(&statefile)?;
-    let state: MediumState = serde_json::from_slice(&raw)?;
-    println!(
-        "Last sync timestamp: {}",
-        epoch_to_rfc3339_utc(state.last_sync)?
-    );
-
-    let synced_mirrors: HashSet<String> = state
-        .mirrors
-        .iter()
-        .map(|(id, _mirror)| id.clone())
-        .collect();
-    let config_mirrors: HashSet<String> = medium.mirrors.iter().cloned().collect();
-    let new_mirrors: HashSet<String> = config_mirrors
-        .difference(&synced_mirrors)
-        .cloned()
-        .collect();
-    let dropped_mirrors: HashSet<String> = synced_mirrors
-        .difference(&config_mirrors)
-        .cloned()
-        .collect();
-
-    println!("Already synced mirrors: {synced_mirrors:?}");
-    println!("Configured mirrors: {config_mirrors:?}");
-
-    if !new_mirrors.is_empty() {
-        println!("Missing mirrors: {new_mirrors:?}");
-    }
-
-    if !dropped_mirrors.is_empty() {
-        println!("To-be-removed mirrors: {dropped_mirrors:?}");
-    }
-
-    for (ref id, ref mirror) in state.mirrors {
-        println!("\nMirror '{}'", id);
-        let snapshots = list_snapshots(Path::new(&medium.mountpoint), id)?;
-        let repo_line = match snapshots.last() {
-            None => {
-                println!("no snapshots");
-                None
-            }
-            Some(last) => {
-                if let Some(first) = snapshots.first() {
-                    if first == last {
-                        println!("1 snapshot: '{last}'");
-                    } else {
-                        println!("{} snapshots: '{first}..{last}'", snapshots.len());
-                    }
-                    Some(generate_repo_file_line(medium_base, id, mirror, last)?)
-                } else {
-                    None
-                }
-            }
-        };
-        println!("Original repository config: '{}'", mirror.repository);
-        if let Some(repo_line) = repo_line {
-            println!("Medium repository line: '{repo_line}'");
-        }
-    }
-
-    Ok(())
+    Ok((state, mirror_state))
 }
 
 pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> Result<(), Error> {
@@ -257,52 +234,44 @@ pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> 
         bail!("Medium mountpoint doesn't exist.");
     }
 
-    let mut statefile = medium_base.to_path_buf();
-    statefile.push(".mirror-state");
+    let lock = lock(medium_base)?;
 
-    let _lock = config::lock_config(&format!("{}/{}", medium.mountpoint, "mirror-state"))?;
-
-    let mut state = if statefile.exists() {
-        println!("Loading state from {statefile:?}..");
-        let raw = file_get_contents(&statefile)?;
-        let state: MediumState = serde_json::from_slice(&raw)?;
-        println!(
-            "Last sync timestamp: {}",
-            epoch_to_rfc3339_utc(state.last_sync)?
-        );
-        state
-    } else {
-        println!("Creating new statefile {statefile:?}..");
-        MediumState {
-            mirrors: HashMap::new(),
-            last_sync: 0,
+    let mut state = match load_state(medium_base)? {
+        Some(state) => {
+            println!("Loaded existing statefile.");
+            println!(
+                "Last sync timestamp: {}",
+                epoch_to_rfc3339_utc(state.last_sync)?
+            );
+            state
+        }
+        None => {
+            println!("Creating new statefile..");
+            MediumState {
+                mirrors: HashMap::new(),
+                last_sync: 0,
+            }
         }
     };
 
     state.last_sync = epoch_i64();
     println!("Sync timestamp: {}", epoch_to_rfc3339_utc(state.last_sync)?);
 
-    let old_mirrors: HashSet<String> = state
-        .mirrors
-        .iter()
-        .map(|(id, _mirror)| id.clone())
-        .collect();
-    let sync_mirrors: HashSet<String> = mirrors.iter().map(|mirror| mirror.id.clone()).collect();
-    let new_mirrors: HashSet<String> = sync_mirrors.difference(&old_mirrors).cloned().collect();
-    let dropped_mirrors: HashSet<String> = old_mirrors.difference(&sync_mirrors).cloned().collect();
+    let mirror_state = get_mirror_state(medium, &state);
+    println!("Previously synced mirrors: {:?}", &mirror_state.synced);
 
-    println!("Previously synced mirrors: {:?}", &old_mirrors);
-
-    if !new_mirrors.is_empty() {
+    if !mirror_state.source_only.is_empty() {
         println!(
-            "Adding {} new mirror(s) to target medium: {new_mirrors:?}",
-            new_mirrors.len()
+            "Adding {} new mirror(s) to target medium: {:?}",
+            mirror_state.source_only.len(),
+            mirror_state.source_only,
         );
     }
-    if !dropped_mirrors.is_empty() {
+    if !mirror_state.target_only.is_empty() {
         println!(
-            "Dropping {} removed mirror(s) from target medium (after syncing): {dropped_mirrors:?}",
-            dropped_mirrors.len()
+            "Dropping {} removed mirror(s) from target medium (after syncing): {:?}",
+            mirror_state.target_only.len(),
+            mirror_state.target_only,
         );
     }
 
@@ -324,16 +293,16 @@ pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> 
             Pool::create(&mirror_base, &mirror_pool)?
         };
 
-        let source_pool: Pool = (&mirror).try_into()?;
+        let source_pool: Pool = pool(&mirror)?;
         source_pool.lock()?.sync_pool(&target_pool, medium.verify)?;
 
         state.mirrors.insert(mirror.id.clone(), mirror.into());
     }
 
-    if !dropped_mirrors.is_empty() {
+    if !mirror_state.target_only.is_empty() {
         println!();
     }
-    for dropped in dropped_mirrors {
+    for dropped in mirror_state.target_only {
         let mut mirror_base = medium_base.to_path_buf();
         mirror_base.push(Path::new(&dropped));
 
@@ -345,12 +314,7 @@ pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> 
 
     println!("Updating statefile..");
     // TODO update state file for exporting/subscription key handling/..?
-    replace_file(
-        &statefile,
-        &serde_json::to_vec(&state)?,
-        CreateOptions::default(),
-        true,
-    )?;
+    write_state(&lock, medium_base, &state)?;
 
     Ok(())
 }

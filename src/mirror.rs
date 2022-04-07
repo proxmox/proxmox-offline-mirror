@@ -7,9 +7,16 @@ use std::{
 
 use anyhow::{format_err, Error};
 use flate2::bufread::GzDecoder;
+use nix::libc;
+use proxmox_sys::fs::file_get_contents;
 
-use crate::{config::MirrorConfig, FetchResult, Progress};
-use crate::{config::ParsedMirrorConfig, snapshot::Snapshot};
+use crate::{
+    config::MirrorConfig,
+    convert_repo_line,
+    pool::Pool,
+    types::{Snapshot, SNAPSHOT_REGEX},
+    FetchResult, Progress,
+};
 use proxmox_apt::{
     deb822::{
         CheckSums, CompressionType, FileReference, FileReferenceType, PackagesFile, ReleaseFile,
@@ -18,6 +25,41 @@ use proxmox_apt::{
 };
 
 use crate::helpers;
+
+pub(crate) fn pool(config: &MirrorConfig) -> Result<Pool, Error> {
+    let pool_dir = format!("{}/.pool", config.dir);
+    Pool::open(Path::new(&config.dir), Path::new(&pool_dir))
+}
+
+struct ParsedMirrorConfig {
+    pub repository: APTRepository,
+    pub architectures: Vec<String>,
+    pub pool: Pool,
+    pub key: Vec<u8>,
+    pub verify: bool,
+    pub sync: bool,
+}
+
+impl TryInto<ParsedMirrorConfig> for MirrorConfig {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<ParsedMirrorConfig, Self::Error> {
+        let pool = pool(&self)?;
+
+        let repository = convert_repo_line(self.repository.clone())?;
+
+        let key = file_get_contents(Path::new(&self.key_path))?;
+
+        Ok(ParsedMirrorConfig {
+            repository,
+            architectures: self.architectures,
+            pool,
+            key,
+            verify: self.verify,
+            sync: self.sync,
+        })
+    }
+}
 
 fn get_dist_url(repo: &APTRepository, path: &str) -> String {
     let dist_root = format!("{}/dists/{}", repo.uris[0], repo.suites[0]);
@@ -100,7 +142,7 @@ fn fetch_release(
     let locked = &config.pool.lock()?;
 
     if !locked.contains(&csums) {
-        locked.add_file(content, &csums, true)?;
+        locked.add_file(content, &csums, config.sync)?;
     }
 
     if detached {
@@ -115,7 +157,7 @@ fn fetch_release(
             ..Default::default()
         };
         if !locked.contains(&csums) {
-            locked.add_file(&sig, &csums, true)?;
+            locked.add_file(&sig, &csums, config.sync)?;
         }
         locked.link_file(
             &csums,
@@ -184,7 +226,7 @@ fn fetch_index_file(
 
     let locked = &config.pool.lock()?;
     if !locked.contains(&uncompressed.checksums) {
-        locked.add_file(decompressed, &uncompressed.checksums, true)?;
+        locked.add_file(decompressed, &uncompressed.checksums, config.sync)?;
     }
 
     // Ensure it's linked at current path
@@ -229,9 +271,46 @@ fn fetch_plain_file(
     Ok(res)
 }
 
-pub fn mirror(config: MirrorConfig) -> Result<(), Error> {
+pub fn init(config: &MirrorConfig) -> Result<(), Error> {
+    let pool_dir = format!("{}/.pool", config.dir);
+    Pool::create(Path::new(&config.dir), Path::new(&pool_dir))?;
+    Ok(())
+}
+
+pub fn destroy(config: &MirrorConfig) -> Result<(), Error> {
+    let pool: Pool = pool(config)?;
+    pool.lock()?.destroy()?;
+
+    Ok(())
+}
+
+pub fn list_snapshots(config: &MirrorConfig) -> Result<Vec<Snapshot>, Error> {
+    let _pool: Pool = pool(config)?;
+
+    let mut list: Vec<Snapshot> = vec![];
+
+    let path = Path::new(&config.dir);
+
+    proxmox_sys::fs::scandir(
+        libc::AT_FDCWD,
+        path,
+        &SNAPSHOT_REGEX,
+        |_l2_fd, snapshot, file_type| {
+            if file_type != nix::dir::Type::Directory {
+                return Ok(());
+            }
+
+            list.push(snapshot.parse()?);
+
+            Ok(())
+        },
+    )?;
+
+    Ok(list)
+}
+
+pub fn create_snapshot(config: MirrorConfig, snapshot: &Snapshot) -> Result<(), Error> {
     let config: ParsedMirrorConfig = config.try_into()?;
-    let snapshot = Snapshot::now();
 
     let prefix = format!("{snapshot}.tmp");
     let prefix = Path::new(&prefix);
@@ -418,4 +497,17 @@ pub fn mirror(config: MirrorConfig) -> Result<(), Error> {
     locked.rename(prefix, Path::new(&format!("{snapshot}")))?;
 
     Ok(())
+}
+
+pub fn remove_snapshot(config: &MirrorConfig, snapshot: &Snapshot) -> Result<(), Error> {
+    let pool: Pool = pool(config)?;
+    let path = pool.get_path(Path::new(&snapshot.to_string()))?;
+
+    pool.lock()?.remove_dir(&path)
+}
+
+pub fn gc(config: &MirrorConfig) -> Result<(usize, u64), Error> {
+    let pool: Pool = pool(config)?;
+
+    pool.lock()?.gc()
 }

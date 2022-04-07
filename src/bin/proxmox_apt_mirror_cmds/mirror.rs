@@ -1,20 +1,17 @@
-use std::path::Path;
-
 use anyhow::Error;
 
-use nix::libc;
 use serde_json::Value;
 
 use proxmox_router::cli::{
-    default_table_format_options, format_and_print_result_full, get_output_format, CliCommand,
-    CliCommandMap, CommandLineInterface, OUTPUT_FORMAT,
+    format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
+    OUTPUT_FORMAT,
 };
-use proxmox_schema::{api, ApiStringFormat, ArraySchema, ReturnType, Schema, StringSchema};
+use proxmox_schema::api;
 
 use proxmox_apt_mirror::{
     config::MirrorConfig,
-    pool::Pool,
-    types::{MIRROR_ID_SCHEMA, SNAPSHOT_REGEX},
+    mirror,
+    types::{Snapshot, MIRROR_ID_SCHEMA},
 };
 
 use super::DEFAULT_CONFIG_PATH;
@@ -35,25 +32,15 @@ use super::DEFAULT_CONFIG_PATH;
  )]
 /// Create a new repository snapshot, fetching required/missing files from original repository.
 async fn create_snapshot(config: Option<String>, id: String, _param: Value) -> Result<(), Error> {
-    //let output_format = get_output_format(&param);
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
     let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
     let config = config.lookup("mirror", &id)?;
 
-    proxmox_apt_mirror::mirror::mirror(config)?;
+    proxmox_apt_mirror::mirror::create_snapshot(config, &Snapshot::now())?;
 
     Ok(())
 }
-
-const SNAPSHOT_SCHEMA: Schema = StringSchema::new("Mirror snapshot")
-    .format(&ApiStringFormat::Pattern(&SNAPSHOT_REGEX))
-    .schema();
-
-const LIST_SNAPSHOTS_RETURN_TYPE: ReturnType = ReturnType {
-    schema: &ArraySchema::new("Returns the list of snapshots.", &SNAPSHOT_SCHEMA).schema(),
-    optional: true,
-};
 
 #[api(
     input: {
@@ -66,6 +53,10 @@ const LIST_SNAPSHOTS_RETURN_TYPE: ReturnType = ReturnType {
             id: {
                 schema: MIRROR_ID_SCHEMA,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
         },
     },
  )]
@@ -77,33 +68,17 @@ async fn list_snapshots(config: Option<String>, id: String, param: Value) -> Res
     let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;
 
-    let _pool: Pool = (&config).try_into()?;
-    let mut list = vec![];
+    let list = mirror::list_snapshots(&config)?;
 
-    let path = Path::new(&config.base_dir);
-
-    proxmox_sys::fs::scandir(
-        libc::AT_FDCWD,
-        path,
-        &SNAPSHOT_REGEX,
-        |_l2_fd, snapshot, file_type| {
-            if file_type != nix::dir::Type::Directory {
-                return Ok(());
-            }
-
-            list.push(snapshot.to_string());
-
-            Ok(())
-        },
-    )?;
-    let mut list = serde_json::json!(list);
-
-    format_and_print_result_full(
-        &mut list,
-        &LIST_SNAPSHOTS_RETURN_TYPE,
-        &output_format,
-        &default_table_format_options(),
-    );
+    if output_format == "text" {
+        println!("Found {} snapshots:", list.len());
+        for snap in &list {
+            println!("- {snap}");
+        }
+    } else {
+        let list = serde_json::json!(list);
+        format_and_print_result(&list, &output_format);
+    }
 
     Ok(())
 }
@@ -120,7 +95,7 @@ async fn list_snapshots(config: Option<String>, id: String, param: Value) -> Res
                 schema: MIRROR_ID_SCHEMA,
             },
             snapshot: {
-                schema: SNAPSHOT_SCHEMA,
+                type: Snapshot,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -133,17 +108,14 @@ async fn list_snapshots(config: Option<String>, id: String, param: Value) -> Res
 async fn remove_snapshot(
     config: Option<String>,
     id: String,
-    snapshot: String,
+    snapshot: Snapshot,
     _param: Value,
 ) -> Result<(), Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
     let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;
-    let pool: Pool = (&config).try_into()?;
-    let path = pool.get_path(Path::new(&snapshot))?;
-
-    pool.lock()?.remove_dir(&path)?;
+    mirror::remove_snapshot(&config, &snapshot)?;
 
     Ok(())
 }
@@ -172,9 +144,9 @@ async fn garbage_collect(config: Option<String>, id: String, _param: Value) -> R
 
     let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;
-    let pool: Pool = (&config).try_into()?;
 
-    let (count, size) = pool.lock()?.gc()?;
+    let (count, size) = mirror::gc(&config)?;
+
     println!("Removed {} files totalling {}b", count, size);
 
     Ok(())

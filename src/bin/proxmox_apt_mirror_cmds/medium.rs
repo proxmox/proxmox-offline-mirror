@@ -1,4 +1,7 @@
+use std::path::Path;
+
 use anyhow::Error;
+use proxmox_time::epoch_to_rfc3339_utc;
 use serde_json::Value;
 
 use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface, OUTPUT_FORMAT};
@@ -6,6 +9,7 @@ use proxmox_schema::api;
 
 use proxmox_apt_mirror::{
     config::{MediaConfig, MirrorConfig},
+    generate_repo_file_line,
     medium::{self},
     types::MIRROR_ID_SCHEMA,
 };
@@ -69,9 +73,52 @@ async fn status(config: Option<String>, id: String, _param: Value) -> Result<Val
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
     let (section_config, _digest) = proxmox_apt_mirror::config::config(&config)?;
-    let config: MediaConfig = section_config.lookup("medium", &id)?;
+    let medium_config: MediaConfig = section_config.lookup("medium", &id)?;
 
-    medium::status(&config)?;
+    let (state, mirror_state) = medium::status(&medium_config)?;
+
+    println!(
+        "Last sync timestamp: {}",
+        epoch_to_rfc3339_utc(state.last_sync)?
+    );
+
+    println!("Already synced mirrors: {:?}", mirror_state.synced);
+
+    if !mirror_state.source_only.is_empty() {
+        println!("Missing mirrors: {:?}", mirror_state.source_only);
+    }
+
+    if !mirror_state.target_only.is_empty() {
+        println!("To-be-removed mirrors: {:?}", mirror_state.target_only);
+    }
+
+    for (ref id, ref mirror) in state.mirrors {
+        println!("\nMirror '{}'", id);
+        let path = Path::new(&medium_config.mountpoint);
+        let snapshots = medium::list_snapshots(path, id)?;
+        let repo_line = match snapshots.last() {
+            None => {
+                println!("no snapshots");
+                None
+            }
+            Some(last) => {
+                if let Some(first) = snapshots.first() {
+                    if first == last {
+                        println!("1 snapshot: '{last}'");
+                    } else {
+                        println!("{} snapshots: '{first}..{last}'", snapshots.len());
+                    }
+                    Some(generate_repo_file_line(path, id, mirror, last)?)
+                } else {
+                    None
+                }
+            }
+        };
+        println!("Original repository config: '{}'", mirror.repository);
+        if let Some(repo_line) = repo_line {
+            println!("Medium repository line: '{repo_line}'");
+        }
+    }
 
     Ok(Value::Null)
 }

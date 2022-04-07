@@ -13,6 +13,7 @@ use proxmox_apt_mirror::helpers::tty::{
 };
 use proxmox_apt_mirror::{
     config::{save_config, MediaConfig, MirrorConfig},
+    mirror,
     types::MIRROR_ID_SCHEMA,
 };
 
@@ -256,7 +257,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         break id;
     };
 
-    let base_dir = loop {
+    let dir = loop {
         let path =
             read_string_from_tty("Enter path where mirrored repository will be stored", None)?;
         if Path::new(&path).exists() {
@@ -265,8 +266,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
             break path;
         }
     };
-
-    let pool_dir = format!("{base_dir}/.pool");
 
     let verify = read_bool_from_tty(
         "Should already mirrored files be re-verified when updating the mirror? (io-intensive!)",
@@ -281,8 +280,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         key_path,
         verify,
         sync,
-        base_dir,
-        pool_dir,
+        dir,
     })
 }
 
@@ -469,6 +467,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
             Action::AddMirror => {
                 let mirror_config = action_add_mirror(&config)?;
                 let id = mirror_config.id.clone();
+                mirror::init(&mirror_config)?;
                 config.set_data(&id, "mirror", mirror_config)?;
                 save_config(&config_file, &config)?;
                 println!("Config entry '{id}' added");

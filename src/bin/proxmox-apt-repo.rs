@@ -2,6 +2,7 @@ use std::{collections::HashMap, path::Path};
 
 use anyhow::{bail, Error};
 
+use proxmox_apt_mirror::types::Snapshot;
 use proxmox_sys::{fs::file_get_contents, linux::tty};
 use proxmox_time::epoch_to_rfc3339_utc;
 use serde_json::Value;
@@ -109,14 +110,20 @@ async fn setup(_param: Value) -> Result<(), Error> {
                 }
 
                 let selected_mirror = read_selection_from_tty("Select mirror", &mirrors, None)?;
-                let snapshots = medium::list_snapshots(mountpoint, selected_mirror)?;
+                let snapshots: Vec<(Snapshot, String)> =
+                    medium::list_snapshots(mountpoint, selected_mirror)?
+                        .into_iter()
+                        .map(|s| (s, s.to_string()))
+                        .collect();
                 if snapshots.is_empty() {
                     println!("Mirror doesn't have any synced snapshots.");
                     continue;
                 }
 
-                let snapshots: Vec<(&str, &str)> =
-                    snapshots.iter().map(|s| (s.as_ref(), s.as_ref())).collect();
+                let snapshots: Vec<(&Snapshot, &str)> = snapshots
+                    .iter()
+                    .map(|(snap, string)| (snap, string.as_ref()))
+                    .collect();
                 let selected_snapshot = read_selection_from_tty(
                     "Select snapshot",
                     &snapshots,
@@ -127,7 +134,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
                     selected_mirror.to_string(),
                     (
                         state.mirrors.get(*selected_mirror).unwrap(),
-                        selected_snapshot.to_string(),
+                        **selected_snapshot,
                     ),
                 );
             }

@@ -4,12 +4,11 @@ use anyhow::{bail, Error};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
-use proxmox_apt::repositories::APTRepository;
 use proxmox_schema::{api, ApiType, Schema, Updater};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
-use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_sys::fs::{replace_file, CreateOptions};
 
-use crate::{convert_repo_line, pool::Pool, types::MIRROR_ID_SCHEMA};
+use crate::types::MIRROR_ID_SCHEMA;
 
 #[api(
     properties: {
@@ -18,59 +17,47 @@ use crate::{convert_repo_line, pool::Pool, types::MIRROR_ID_SCHEMA};
         },
         repository: {
             type: String,
-            description: "Single repository definition in sources.list format.",
         },
         architectures: {
             type: Array,
-            description: "List of architectures to mirror",
             items: {
                 type: String,
                 description: "Architecture specifier.",
             },
         },
-        "pool-dir": {
+        "dir": {
             type: String,
-            description: "Path to pool directory storing checksum files.",
-        },
-        "base-dir": {
-            type: String,
-            description: "Path to directory storing repository snapshot files (must be on same FS as `pool-dir`).",
         },
         "key-path": {
             type: String,
-            description: "Path to signing key of `repository`",
         },
         verify: {
             type: bool,
-            description: "Whether to verify existing files stored in pool (IO-intensive).",
         },
         sync: {
             type: bool,
-            description: "Whether to write pool updates with fsync flag.",
         },
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, Updater)]
 #[serde(rename_all = "kebab-case")]
-/// Configuration file for mirrored repositories.
+/// Configuration entry for a mirrored repository.
 pub struct MirrorConfig {
     #[updater(skip)]
+    /// Identifier for this entry.
     pub id: String,
+    /// Single repository definition in sources.list format.
     pub repository: String,
+    /// List of architectures that should be mirrored.
     pub architectures: Vec<String>,
-    pub pool_dir: String,
-    pub base_dir: String,
+    /// Path to directory containg mirrored repository.
+    pub dir: String,
+    /// Path to public key file for verifying repository integrity.
     pub key_path: String,
+    /// Whether to verify existing files or assume they are valid (IO-intensive).
     pub verify: bool,
+    /// Whether to write new files using FSYNC.
     pub sync: bool,
-}
-
-impl TryInto<Pool> for &MirrorConfig {
-    type Error = Error;
-
-    fn try_into(self) -> Result<Pool, Self::Error> {
-        Pool::open(Path::new(&self.base_dir), Path::new(&self.pool_dir))
-    }
 }
 
 #[api(
@@ -112,7 +99,7 @@ pub struct MediaConfig {
 }
 
 lazy_static! {
-    pub static ref CONFIG: SectionConfig = init();
+    static ref CONFIG: SectionConfig = init();
 }
 
 fn init() -> SectionConfig {
@@ -173,34 +160,4 @@ pub fn config(path: &str) -> Result<(SectionConfigData, [u8; 32]), Error> {
 pub fn save_config(path: &str, data: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(path, data)?;
     replace_file(path, raw.as_bytes(), CreateOptions::default(), true)
-}
-
-pub struct ParsedMirrorConfig {
-    pub repository: APTRepository,
-    pub architectures: Vec<String>,
-    pub pool: Pool,
-    pub key: Vec<u8>,
-    pub verify: bool,
-    pub sync: bool,
-}
-
-impl TryInto<ParsedMirrorConfig> for MirrorConfig {
-    type Error = anyhow::Error;
-
-    fn try_into(self) -> Result<ParsedMirrorConfig, Self::Error> {
-        let pool = (&self).try_into()?;
-
-        let repository = convert_repo_line(self.repository.clone())?;
-
-        let key = file_get_contents(Path::new(&self.key_path))?;
-
-        Ok(ParsedMirrorConfig {
-            repository,
-            architectures: self.architectures,
-            pool,
-            key,
-            verify: self.verify,
-            sync: self.sync,
-        })
-    }
 }

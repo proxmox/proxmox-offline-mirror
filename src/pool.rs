@@ -15,18 +15,18 @@ use proxmox_sys::fs::{create_path, file_get_contents, replace_file, CreateOption
 use walkdir::WalkDir;
 
 #[derive(Debug)]
-pub struct Pool {
+pub(crate) struct Pool {
     pool_dir: PathBuf,
     base_dir: PathBuf,
 }
 
-pub struct PoolLockGuard<'lock> {
+pub(crate) struct PoolLockGuard<'lock> {
     pool: &'lock Pool,
     _lock: Option<File>,
 }
 
 impl Pool {
-    pub fn create(base: &Path, pool: &Path) -> Result<Self, Error> {
+    pub(crate) fn create(base: &Path, pool: &Path) -> Result<Self, Error> {
         if base.exists() {
             bail!("Pool base dir already exists.");
         }
@@ -43,7 +43,7 @@ impl Pool {
             base_dir: base.to_path_buf(),
         })
     }
-    pub fn open(base: &Path, pool: &Path) -> Result<Self, Error> {
+    pub(crate) fn open(base: &Path, pool: &Path) -> Result<Self, Error> {
         if !base.exists() {
             bail!("Pool base dir doesn't exist.")
         }
@@ -58,7 +58,7 @@ impl Pool {
         })
     }
 
-    pub fn lock(&self) -> Result<PoolLockGuard, Error> {
+    pub(crate) fn lock(&self) -> Result<PoolLockGuard, Error> {
         let timeout = std::time::Duration::new(10, 0);
         let lock = Some(proxmox_sys::fs::open_file_locked(
             &self.lock_path(),
@@ -72,14 +72,18 @@ impl Pool {
             _lock: lock,
         })
     }
-    pub fn contains(&self, checksums: &CheckSums) -> bool {
+    pub(crate) fn contains(&self, checksums: &CheckSums) -> bool {
         match self.get_checksum_paths(checksums) {
             Ok(paths) => paths.iter().any(|path| path.exists()),
             Err(_err) => false,
         }
     }
 
-    pub fn get_contents(&self, checksums: &CheckSums, verify: bool) -> Result<Vec<u8>, Error> {
+    pub(crate) fn get_contents(
+        &self,
+        checksums: &CheckSums,
+        verify: bool,
+    ) -> Result<Vec<u8>, Error> {
         let source = self
             .get_checksum_paths(checksums)?
             .into_iter()
@@ -135,7 +139,7 @@ impl Pool {
         lock_path
     }
 
-    pub fn get_path(&self, rel_path: &Path) -> Result<PathBuf, Error> {
+    pub(crate) fn get_path(&self, rel_path: &Path) -> Result<PathBuf, Error> {
         let mut path = self.base_dir.clone();
         path.push(rel_path);
 
@@ -210,7 +214,7 @@ impl PoolLockGuard<'_> {
         Ok((inode_map, link_count))
     }
 
-    pub fn sync_pool(&self, target: &Pool, verify: bool) -> Result<(), Error> {
+    pub(crate) fn sync_pool(&self, target: &Pool, verify: bool) -> Result<(), Error> {
         let target = target.lock()?;
 
         let (inode_map, total_link_count) = self.get_inode_csum_map()?;
@@ -321,7 +325,12 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
-    pub fn add_file(&self, data: &[u8], checksums: &CheckSums, sync: bool) -> Result<(), Error> {
+    pub(crate) fn add_file(
+        &self,
+        data: &[u8],
+        checksums: &CheckSums,
+        sync: bool,
+    ) -> Result<(), Error> {
         if self.pool.contains(checksums) {
             bail!("Pool already contains file with this checksum.");
         }
@@ -340,7 +349,7 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
-    pub fn link_file(&self, checksums: &CheckSums, path: &Path) -> Result<bool, Error> {
+    pub(crate) fn link_file(&self, checksums: &CheckSums, path: &Path) -> Result<bool, Error> {
         let path = self.pool.get_path(path)?;
         if !self.pool.path_in_base(&path) {
             bail!(
@@ -364,7 +373,11 @@ impl PoolLockGuard<'_> {
         link_file_do(source, &path)
     }
 
-    pub fn unlink_file(&self, mut path: &Path, remove_empty_parents: bool) -> Result<(), Error> {
+    pub(crate) fn unlink_file(
+        &self,
+        mut path: &Path,
+        remove_empty_parents: bool,
+    ) -> Result<(), Error> {
         if !self.pool.path_in_base(path) {
             bail!("Cannot unlink file outside of pool.");
         }
@@ -388,7 +401,7 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
-    pub fn remove_dir(&self, path: &Path) -> Result<(), Error> {
+    pub(crate) fn remove_dir(&self, path: &Path) -> Result<(), Error> {
         if !self.pool.path_in_base(path) {
             bail!("Cannot unlink file outside of pool.");
         }
@@ -397,7 +410,7 @@ impl PoolLockGuard<'_> {
             .map_err(|err| format_err!("Failed to remove {path:?} - {err}"))
     }
 
-    pub fn gc(&self) -> Result<(usize, u64), Error> {
+    pub(crate) fn gc(&self) -> Result<(usize, u64), Error> {
         let (inode_map, _link_count) = self.get_inode_csum_map()?;
 
         let mut count = 0;
@@ -462,14 +475,14 @@ impl PoolLockGuard<'_> {
         Ok((count, size))
     }
 
-    pub fn destroy(self) -> Result<(), Error> {
+    pub(crate) fn destroy(self) -> Result<(), Error> {
         // TODO - this removes the lock file..
         std::fs::remove_dir_all(self.pool_dir.clone())?;
         std::fs::remove_dir_all(self.base_dir.clone())?;
         Ok(())
     }
 
-    pub fn rename(&self, from: &Path, to: &Path) -> Result<(), Error> {
+    pub(crate) fn rename(&self, from: &Path, to: &Path) -> Result<(), Error> {
         let mut abs_from = self.base_dir.clone();
         abs_from.push(from);
 

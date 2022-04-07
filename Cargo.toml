@@ -30,5 +30,6 @@ proxmox-async = "0.4"
 proxmox-router = { version = "1.1", features = [ "cli" ] }
 proxmox-schema = { version = "1.1", features = [ "api-macro" ] }
 proxmox-section-config = "1"
+proxmox-serde = "0.1"
 proxmox-sys = { version = "0.3" }
 proxmox-time = { version = "1.1.3" }

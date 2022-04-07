@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::Error;
 use serde_json::Value;
 
@@ -11,7 +9,7 @@ use proxmox_schema::{api, param_bail, ApiType, ArraySchema, ReturnType};
 
 use proxmox_apt_mirror::{
     config::{MediaConfig, MediaConfigUpdater, MirrorConfig, MirrorConfigUpdater},
-    pool::Pool,
+    mirror,
     types::MIRROR_ID_SCHEMA,
 };
 
@@ -148,7 +146,8 @@ async fn add_mirror(
         param_bail!("name", "mirror config entry '{}' already exists.", data.id);
     }
 
-    let _pool = Pool::create(Path::new(&data.base_dir), Path::new(&data.pool_dir))?;
+    mirror::init(&data)?;
+
     section_config.set_data(&data.id, "mirror", &data)?;
     proxmox_apt_mirror::config::save_config(&config, &section_config)?;
 
@@ -193,8 +192,7 @@ async fn remove_mirror(
     match section_config.lookup::<MirrorConfig>("mirror", &id) {
         Ok(config) => {
             if remove_data {
-                let pool: Pool = (&config).try_into()?;
-                pool.lock()?.destroy()?;
+                mirror::destroy(&config)?;
             }
 
             section_config.sections.remove(&id);
@@ -247,11 +245,8 @@ pub fn update_mirror(
     if let Some(repository) = update.repository {
         data.repository = repository
     }
-    if let Some(base_dir) = update.base_dir {
-        data.base_dir = base_dir
-    }
-    if let Some(pool_dir) = update.pool_dir {
-        data.pool_dir = pool_dir
+    if let Some(dir) = update.dir {
+        data.dir = dir
     }
     if let Some(architectures) = update.architectures {
         data.architectures = architectures
