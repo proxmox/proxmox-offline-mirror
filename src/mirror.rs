@@ -31,6 +31,7 @@ pub(crate) fn pool(config: &MirrorConfig) -> Result<Pool, Error> {
     Pool::open(Path::new(&config.dir), Path::new(&pool_dir))
 }
 
+/// `MirrorConfig`, but some fields converted/parsed into usable types.
 struct ParsedMirrorConfig {
     pub repository: APTRepository,
     pub architectures: Vec<String>,
@@ -61,12 +62,14 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
     }
 }
 
+// Helper to get absolute URL for dist-specific relative `path`.
 fn get_dist_url(repo: &APTRepository, path: &str) -> String {
     let dist_root = format!("{}/dists/{}", repo.uris[0], repo.suites[0]);
 
     format!("{}/{}", dist_root, path)
 }
 
+// Helper to get dist-specific path given a `prefix` (snapshot dir) and relative `path`.
 fn get_dist_path(repo: &APTRepository, prefix: &Path, path: &str) -> PathBuf {
     let mut base = PathBuf::from(prefix);
     base.push("dists");
@@ -75,10 +78,14 @@ fn get_dist_path(repo: &APTRepository, prefix: &Path, path: &str) -> PathBuf {
     base
 }
 
+// Helper to get generic URL given a `repo` and `path`.
 fn get_repo_url(repo: &APTRepository, path: &str) -> String {
     format!("{}/{}", repo.uris[0], path)
 }
 
+/// Helper to fetch file from URI and optionally verify the responses checksum.
+///
+/// Only fetches and returns data, doesn't store anything anywhere.
 fn fetch_repo_file(
     uri: &str,
     max_size: Option<u64>,
@@ -103,6 +110,9 @@ fn fetch_repo_file(
     })
 }
 
+/// Helper to fetch InRelease (`detached` == false) or Release/Release.gpg (`detached` == true) files from repository.
+///
+/// Verifies the contained/detached signature, stores all fetched files under `prefix`, and returns the verified raw release file data.
 fn fetch_release(
     config: &ParsedMirrorConfig,
     prefix: &Path,
@@ -176,6 +186,12 @@ fn fetch_release(
     })
 }
 
+/// Helper to fetch an index file referenced by a `ReleaseFile`.
+///
+/// Since these usually come in compressed and uncompressed form, with the latter often not actually existing in the source repository as file, this fetches and if necessary decompresses to obtain a copy of the uncompressed data.
+/// Will skip fetching if both references are already available with the expected checksum in the pool, in which case they will just be re-linked under the new path.
+///
+/// Returns the uncompressed data.
 fn fetch_index_file(
     config: &ParsedMirrorConfig,
     prefix: &Path,
@@ -238,6 +254,11 @@ fn fetch_index_file(
     })
 }
 
+/// Helper to fetch arbitrary files like binary packages.
+///
+/// Will skip fetching if matching file already exists locally, in which case it will just be re-linked under the new path.
+///
+/// If need_data is false and the mirror config is set to skip verification, reading the file's content will be skipped as well if fetching was skipped.
 fn fetch_plain_file(
     config: &ParsedMirrorConfig,
     url: &str,
@@ -271,12 +292,14 @@ fn fetch_plain_file(
     Ok(res)
 }
 
+/// Initialize a new mirror (by creating the corresponding pool).
 pub fn init(config: &MirrorConfig) -> Result<(), Error> {
     let pool_dir = format!("{}/.pool", config.dir);
     Pool::create(Path::new(&config.dir), Path::new(&pool_dir))?;
     Ok(())
 }
 
+/// Destroy a mirror (by destroying the corresponding pool).
 pub fn destroy(config: &MirrorConfig) -> Result<(), Error> {
     let pool: Pool = pool(config)?;
     pool.lock()?.destroy()?;
@@ -284,6 +307,7 @@ pub fn destroy(config: &MirrorConfig) -> Result<(), Error> {
     Ok(())
 }
 
+/// List snapshots
 pub fn list_snapshots(config: &MirrorConfig) -> Result<Vec<Snapshot>, Error> {
     let _pool: Pool = pool(config)?;
 
@@ -309,6 +333,14 @@ pub fn list_snapshots(config: &MirrorConfig) -> Result<Vec<Snapshot>, Error> {
     Ok(list)
 }
 
+/// Create a new snapshot of the remote repository, fetching and storing files as needed.
+///
+/// Operates in three phases:
+/// - Fetch and verify release files
+/// - Fetch referenced indices according to config
+/// - Fetch binary packages referenced by package indices
+///
+/// Files will be linked in a temporary directory and only renamed to the final, valid snapshot directory at the end. In case of error, leftover `XXX.tmp` directories at the top level of `base_dir` can be safely removed once the next snapshot was successfully created, as they only contain hardlinks.
 pub fn create_snapshot(config: MirrorConfig, snapshot: &Snapshot) -> Result<(), Error> {
     let config: ParsedMirrorConfig = config.try_into()?;
 
@@ -499,6 +531,7 @@ pub fn create_snapshot(config: MirrorConfig, snapshot: &Snapshot) -> Result<(), 
     Ok(())
 }
 
+/// Remove a snapshot by removing the corresponding snapshot directory. To actually free up space, a garbage collection needs to be run afterwards.
 pub fn remove_snapshot(config: &MirrorConfig, snapshot: &Snapshot) -> Result<(), Error> {
     let pool: Pool = pool(config)?;
     let path = pool.get_path(Path::new(&snapshot.to_string()))?;
@@ -506,6 +539,7 @@ pub fn remove_snapshot(config: &MirrorConfig, snapshot: &Snapshot) -> Result<(),
     pool.lock()?.remove_dir(&path)
 }
 
+/// Run a garbage collection on the underlying pool.
 pub fn gc(config: &MirrorConfig) -> Result<(usize, u64), Error> {
     let pool: Pool = pool(config)?;
 

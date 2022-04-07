@@ -18,8 +18,13 @@ use crate::{
 };
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+/// Information about a mirror on the medium.
+///
+/// Used to generate repository lines for accessing the synced mirror.
 pub struct MirrorInfo {
+    /// Original repository line
     pub repository: String,
+    /// Mirrored architectures
     pub architectures: Vec<String>,
 }
 
@@ -43,17 +48,29 @@ impl From<MirrorConfig> for MirrorInfo {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+/// State of mirrors on the medium
 pub struct MediumState {
+    /// Map of mirror ID to `MirrorInfo`.
     pub mirrors: HashMap<String, MirrorInfo>,
+    /// Timestamp of last sync operation.
     pub last_sync: i64,
 }
 
+/// Information about the mirrors on a medium.
+///
+/// Derived from `MediaConfig` (supposed state) and `MediumState` (actual state)
 pub struct MediumMirrorState {
+    /// Mirrors which are configured and synced
     pub synced: HashSet<String>,
+    /// Mirrors which are configured
+    pub config: HashSet<String>,
+    /// Mirrors which are configured but not synced yet
     pub source_only: HashSet<String>,
+    /// Mirrors which are not configured but exist on medium
     pub target_only: HashSet<String>,
 }
 
+// helper to derive `MediumMirrorState`
 fn get_mirror_state(config: &MediaConfig, state: &MediumState) -> MediumMirrorState {
     let synced_mirrors: HashSet<String> = state
         .mirrors
@@ -72,11 +89,13 @@ fn get_mirror_state(config: &MediaConfig, state: &MediumState) -> MediumMirrorSt
 
     MediumMirrorState {
         synced: synced_mirrors,
+        config: config_mirrors,
         source_only: new_mirrors,
         target_only: dropped_mirrors,
     }
 }
 
+// Helper to lock medium
 fn lock(base: &Path) -> Result<ConfigLockGuard, Error> {
     let mut lockfile = base.to_path_buf();
     lockfile.push("mirror-state");
@@ -86,12 +105,14 @@ fn lock(base: &Path) -> Result<ConfigLockGuard, Error> {
     config::lock_config(lockfile)
 }
 
+// Helper to get statefile path
 fn statefile(base: &Path) -> PathBuf {
     let mut statefile = base.to_path_buf();
     statefile.push(".mirror-state");
     statefile
 }
 
+// Helper to load statefile
 fn load_state(base: &Path) -> Result<Option<MediumState>, Error> {
     let statefile = statefile(base);
 
@@ -104,6 +125,7 @@ fn load_state(base: &Path) -> Result<Option<MediumState>, Error> {
     }
 }
 
+// Helper to write statefile
 fn write_state(_lock: &ConfigLockGuard, base: &Path, state: &MediumState) -> Result<(), Error> {
     replace_file(
         &statefile(base),
@@ -115,6 +137,7 @@ fn write_state(_lock: &ConfigLockGuard, base: &Path, state: &MediumState) -> Res
     Ok(())
 }
 
+/// List snapshots of a given mirror on a given medium.
 pub fn list_snapshots(medium_base: &Path, mirror: &str) -> Result<Vec<Snapshot>, Error> {
     if !medium_base.exists() {
         bail!("Medium mountpoint doesn't exist.");
@@ -144,6 +167,7 @@ pub fn list_snapshots(medium_base: &Path, mirror: &str) -> Result<Vec<Snapshot>,
     Ok(list)
 }
 
+/// Generate a repository snippet for a selection of mirrors on a medium.
 pub fn generate_repo_snippet(
     medium_base: &Path,
     repositories: &HashMap<String, (&MirrorInfo, Snapshot)>,
@@ -160,6 +184,7 @@ pub fn generate_repo_snippet(
     Ok(res)
 }
 
+/// Run garbage collection on all mirrors on a medium.
 pub fn gc(medium: &crate::config::MediaConfig) -> Result<(), Error> {
     let medium_base = Path::new(&medium.mountpoint);
     if !medium_base.exists() {
@@ -205,6 +230,7 @@ pub fn gc(medium: &crate::config::MediaConfig) -> Result<(), Error> {
     Ok(())
 }
 
+/// Get `MediumState` and `MediumMirrorState` for a given medium.
 pub fn status(
     medium: &crate::config::MediaConfig,
 ) -> Result<(MediumState, MediumMirrorState), Error> {
@@ -220,6 +246,7 @@ pub fn status(
     Ok((state, mirror_state))
 }
 
+/// Sync medium's content according to config.
 pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> Result<(), Error> {
     println!(
         "Syncing {} mirrors {:?} to medium '{}' ({:?})",
@@ -228,6 +255,10 @@ pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> 
         &medium.id,
         &medium.mountpoint
     );
+
+    if mirrors.len() != medium.mirrors.len() {
+        bail!("Number of mirrors in config and sync request don't match.");
+    }
 
     let medium_base = Path::new(&medium.mountpoint);
     if !medium_base.exists() {
@@ -259,6 +290,15 @@ pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> 
 
     let mirror_state = get_mirror_state(medium, &state);
     println!("Previously synced mirrors: {:?}", &mirror_state.synced);
+
+    let requested: HashSet<String> = mirrors.iter().map(|mirror| mirror.id.clone()).collect();
+    if requested != mirror_state.config {
+        bail!(
+            "Config and sync request don't use the same mirror list: {:?} / {:?}",
+            mirror_state.config,
+            requested
+        );
+    }
 
     if !mirror_state.source_only.is_empty() {
         println!(

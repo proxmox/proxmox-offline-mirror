@@ -67,19 +67,15 @@ pub struct MirrorConfig {
         },
         mountpoint: {
             type: String,
-            description: "Path where sync target is mounted."
         },
         verify: {
             type: bool,
-            description: "Whether to verify existing files stored in pool (IO-intensive).",
         },
         sync: {
             type: bool,
-            description: "Whether to write pool updates with fsync flag.",
         },
         mirrors: {
             type: Array,
-            description: "List of mirror IDs this sync target should contain.",
             items: {
                 schema: MIRROR_ID_SCHEMA,
             },
@@ -88,13 +84,18 @@ pub struct MirrorConfig {
 )]
 #[derive(Debug, Serialize, Deserialize, Updater)]
 #[serde(rename_all = "kebab-case")]
-/// Configuration file for mirrored repositories.
+/// Configuration entry for an external medium.
 pub struct MediaConfig {
     #[updater(skip)]
+    /// Identifier for this entry.
     pub id: String,
+    /// Mountpoint where medium is available on mirroring system.
     pub mountpoint: String,
+    /// List of [MirrorConfig] IDs which should be synced to medium.
     pub mirrors: Vec<String>,
+    /// Whether to verify existing files or assume they are valid (IO-intensive).
     pub verify: bool,
+    /// Whether to write new files using FSYNC.
     pub sync: bool,
 }
 
@@ -127,9 +128,12 @@ fn init() -> SectionConfig {
     config
 }
 
+/// Lock guard for guarding modifications of config file.
+///
+/// Obtained via [lock_config], should only be dropped once config file should no longer be locked.
 pub struct ConfigLockGuard(std::fs::File);
 
-/// Get exclusive lock
+/// Get exclusive lock for config file (in order to make or protect against modifications).
 pub fn lock_config(path: &str) -> Result<ConfigLockGuard, Error> {
     let path = Path::new(path);
 
@@ -148,6 +152,7 @@ pub fn lock_config(path: &str) -> Result<ConfigLockGuard, Error> {
     Ok(ConfigLockGuard(file))
 }
 
+/// Read config
 pub fn config(path: &str) -> Result<(SectionConfigData, [u8; 32]), Error> {
     let content =
         proxmox_sys::fs::file_read_optional_string(path)?.unwrap_or_else(|| "".to_string());
@@ -157,6 +162,7 @@ pub fn config(path: &str) -> Result<(SectionConfigData, [u8; 32]), Error> {
     Ok((data, digest))
 }
 
+/// Write config (and verify data matches schema!)
 pub fn save_config(path: &str, data: &SectionConfigData) -> Result<(), Error> {
     let raw = CONFIG.write(path, data)?;
     replace_file(path, raw.as_bytes(), CreateOptions::default(), true)

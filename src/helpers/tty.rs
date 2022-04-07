@@ -3,6 +3,9 @@ use std::io::Write;
 use anyhow::{bail, format_err, Error};
 use proxmox_schema::parse_boolean;
 
+/// Prints `query`, reads string from terminal, defaulting to `default`.
+///
+/// Will retry if no default is given and user doesn't input any data.
 pub fn read_string_from_tty(query: &str, default: Option<&str>) -> Result<String, Error> {
     use std::io::{BufRead, BufReader};
 
@@ -29,6 +32,9 @@ pub fn read_string_from_tty(query: &str, default: Option<&str>) -> Result<String
     }
 }
 
+/// Prints `query`, reads boolean-string from terminal, defaulting to `default`.
+///
+/// Will retry if the user doesn't input a valid boolean string.
 pub fn read_bool_from_tty(query: &str, default: Option<bool>) -> Result<bool, Error> {
     let default = default.map(|v| if v { "yes" } else { "no" });
 
@@ -46,6 +52,9 @@ pub fn read_bool_from_tty(query: &str, default: Option<bool>) -> Result<bool, Er
     }
 }
 
+/// Prints query and a list of options, allowing the user to select one.
+///
+/// Will retry if user input cannot be parsed as choice or is invalid.
 pub fn read_selection_from_tty<'a, V>(
     query: &str,
     choices: &'a [(V, &str)],

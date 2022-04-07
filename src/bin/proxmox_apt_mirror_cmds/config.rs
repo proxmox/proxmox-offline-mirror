@@ -322,7 +322,7 @@ async fn list_media(config: Option<String>, param: Value) -> Result<Value, Error
         }
     },
  )]
-/// Show full media config entry.
+/// Show full medium config entry.
 async fn show_medium(config: Option<String>, id: String, param: Value) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 

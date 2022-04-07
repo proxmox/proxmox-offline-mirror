@@ -60,6 +60,8 @@ impl<'a> VerificationHelper for Helper<'a> {
         }
     }
 }
+
+/// Verifies GPG-signed `msg` was signed by `key`, returning the verified data without signature.
 pub(crate) fn verify_signature<'msg>(
     msg: &'msg [u8],
     key: &[u8],

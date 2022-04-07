@@ -15,17 +15,24 @@ use proxmox_sys::fs::{create_path, file_get_contents, replace_file, CreateOption
 use walkdir::WalkDir;
 
 #[derive(Debug)]
+/// Pool consisting of two (possibly overlapping) directory trees:
+/// - pool_dir contains checksum files added by `add_file`
+/// - base_dir contains directories and hardlinks to checksum files created by `link_file`
+///
+/// Files are considered orphaned and eligible for GC if they either only exist in pool_dir or only exist in base_dir
 pub(crate) struct Pool {
     pool_dir: PathBuf,
     base_dir: PathBuf,
 }
 
+/// Lock guard used to guard against concurrent modification
 pub(crate) struct PoolLockGuard<'lock> {
     pool: &'lock Pool,
     _lock: Option<File>,
 }
 
 impl Pool {
+    /// Create a new pool by creating `pool_dir` and `base_dir`. They must not exist before calling this function.
     pub(crate) fn create(base: &Path, pool: &Path) -> Result<Self, Error> {
         if base.exists() {
             bail!("Pool base dir already exists.");
@@ -43,6 +50,8 @@ impl Pool {
             base_dir: base.to_path_buf(),
         })
     }
+
+    /// Open an existing pool. `pool_dir` and `base_dir` must exist.
     pub(crate) fn open(base: &Path, pool: &Path) -> Result<Self, Error> {
         if !base.exists() {
             bail!("Pool base dir doesn't exist.")
@@ -58,6 +67,7 @@ impl Pool {
         })
     }
 
+    /// Lock a pool to add/remove files or links, or protect against concurrent modifications.
     pub(crate) fn lock(&self) -> Result<PoolLockGuard, Error> {
         let timeout = std::time::Duration::new(10, 0);
         let lock = Some(proxmox_sys::fs::open_file_locked(
@@ -72,6 +82,8 @@ impl Pool {
             _lock: lock,
         })
     }
+
+    /// Returns whether the pool contain a file for the given checksum.
     pub(crate) fn contains(&self, checksums: &CheckSums) -> bool {
         match self.get_checksum_paths(checksums) {
             Ok(paths) => paths.iter().any(|path| path.exists()),
@@ -79,6 +91,7 @@ impl Pool {
         }
     }
 
+    /// Returns the file contents for a given checksum, optionally `verify`ing whether the on-disk data matches the checksum.
     pub(crate) fn get_contents(
         &self,
         checksums: &CheckSums,
@@ -97,6 +110,7 @@ impl Pool {
         Ok(data)
     }
 
+    // Helper to return all possible checksum file paths for a given checksum. Checksums considered insecure will be ignored.
     fn get_checksum_paths(&self, checksums: &CheckSums) -> Result<Vec<PathBuf>, Error> {
         if !checksums.is_secure() {
             bail!("pool cannot operate on files lacking secure checksum!");
@@ -152,6 +166,7 @@ impl Pool {
 }
 
 impl PoolLockGuard<'_> {
+    // Helper to scan the pool for all checksum files and the total link count. The resulting HashMap can be used to check whether files in `base_dir` are properly registered in the pool or orphaned.
     fn get_inode_csum_map(&self) -> Result<(HashMap<u64, CheckSums>, u64), Error> {
         let mut inode_map: HashMap<u64, CheckSums> = HashMap::new();
         let mut link_count = 0;
@@ -214,6 +229,13 @@ impl PoolLockGuard<'_> {
         Ok((inode_map, link_count))
     }
 
+    /// Syncs the pool into a target pool, optionally verifying file contents along the way.
+    ///
+    /// This proceeds in four phases:
+    /// - iterate over source pool checksum files, add missing ones to target pool
+    /// - iterate over source pool links, add missing ones to target pool
+    /// - iterate over target pool links, remove those which are not present in source pool
+    /// - if links were removed in phase 3, run GC on target pool
     pub(crate) fn sync_pool(&self, target: &Pool, verify: bool) -> Result<(), Error> {
         let target = target.lock()?;
 
@@ -325,6 +347,9 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
+    /// Adds a new checksum file.
+    ///
+    /// If `checksums` contains multiple trusted checksums, they will be linked to the first checksum file.
     pub(crate) fn add_file(
         &self,
         data: &[u8],
@@ -349,6 +374,7 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
+    /// Links previously added file into `path` (relative to `base_dir`). Missing parent directories will be created automatically.
     pub(crate) fn link_file(&self, checksums: &CheckSums, path: &Path) -> Result<bool, Error> {
         let path = self.pool.get_path(path)?;
         if !self.pool.path_in_base(&path) {
@@ -373,6 +399,7 @@ impl PoolLockGuard<'_> {
         link_file_do(source, &path)
     }
 
+    /// Unlink a previously linked file at `path` (absolute, must be below `base_dir`). Optionally remove any parent directories that became empty.
     pub(crate) fn unlink_file(
         &self,
         mut path: &Path,
@@ -401,6 +428,7 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
+    /// Remove a directory tree at `path` (absolute, must be below `base_dir`)
     pub(crate) fn remove_dir(&self, path: &Path) -> Result<(), Error> {
         if !self.pool.path_in_base(path) {
             bail!("Cannot unlink file outside of pool.");
@@ -410,6 +438,9 @@ impl PoolLockGuard<'_> {
             .map_err(|err| format_err!("Failed to remove {path:?} - {err}"))
     }
 
+    /// Run a garbage collection, removing
+    /// - any checksum files that have no links outside of `pool_dir`
+    /// - any files in `base_dir` that have no corresponding checksum files
     pub(crate) fn gc(&self) -> Result<(usize, u64), Error> {
         let (inode_map, _link_count) = self.get_inode_csum_map()?;
 
@@ -475,6 +506,7 @@ impl PoolLockGuard<'_> {
         Ok((count, size))
     }
 
+    /// Destroy pool by removing `base_dir` and `pool_dir`.
     pub(crate) fn destroy(self) -> Result<(), Error> {
         // TODO - this removes the lock file..
         std::fs::remove_dir_all(self.pool_dir.clone())?;
@@ -482,6 +514,7 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
+    /// Rename a link or directory from `from` to `to` (both relative to `base_dir`).
     pub(crate) fn rename(&self, from: &Path, to: &Path) -> Result<(), Error> {
         let mut abs_from = self.base_dir.clone();
         abs_from.push(from);

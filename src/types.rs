@@ -17,6 +17,8 @@ const_regex! {
 }
 pub const PROXMOX_SAFE_ID_FORMAT: ApiStringFormat =
     ApiStringFormat::Pattern(&PROXMOX_SAFE_ID_REGEX);
+
+/// Schema for config IDs
 pub const MIRROR_ID_SCHEMA: Schema = StringSchema::new("Mirror name.")
     .format(&PROXMOX_SAFE_ID_FORMAT)
     .min_length(3)

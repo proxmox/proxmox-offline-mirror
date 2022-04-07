@@ -1,3 +1,13 @@
+//! Proxmox mirroring tool for APT repositories.
+//!
+//! This library provides the underlying functionality of the `proxmox-apt-mirror` and
+//! `proxmox-apt-repo` binaries.
+//!
+//! It implements the following features:
+//! - local storage in a hardlink-based pool
+//! - intelligent fetching only those files of a repository that have changed since the last mirroring operation
+//! - syncing to external media
+
 use std::{
     fmt::Display,
     ops::{Add, AddAssign},
@@ -9,15 +19,24 @@ use medium::MirrorInfo;
 use proxmox_apt::repositories::{APTRepository, APTRepositoryFile, APTRepositoryFileType};
 use types::Snapshot;
 
+/// Main configuration file containing definitions of mirrors and external media.
 pub mod config;
+/// Helpers
 pub mod helpers;
+/// Operations concerning a medium.
 pub mod medium;
+/// Operations concerning a mirror.
 pub mod mirror;
-pub mod pool;
+/// Hardlink pool.
+pub(crate) mod pool;
+/// Various common types
 pub mod types;
 
+/// Combination of data and whether it needed to be fetched or was re-used.
 struct FetchResult {
+    /// Fetched/read data
     data: Vec<u8>,
+    /// Number of bytes fetched (0 if re-using pool data)
     fetched: usize,
 }
 
@@ -32,6 +51,7 @@ impl FetchResult {
 }
 
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+/// To keep track of progress and how much data was newly fetched vs. re-used and just linked
 struct Progress {
     new: usize,
     new_bytes: usize,
@@ -92,12 +112,14 @@ impl Display for Progress {
     }
 }
 
+/// Try to parse a line in sources.list format into an `APTRepository`.
 pub(crate) fn convert_repo_line(line: String) -> Result<APTRepository, Error> {
     let mut repository = APTRepositoryFile::with_content(line, APTRepositoryFileType::List);
     repository.parse()?;
     Ok(repository.repositories[0].clone())
 }
 
+/// Generate a file-based repository line in sources.list format
 pub fn generate_repo_file_line(
     medium_base: &Path,
     mirror_id: &str,
