@@ -19,7 +19,7 @@ use medium::MirrorInfo;
 use proxmox_apt::repositories::{APTRepository, APTRepositoryFile, APTRepositoryFileType};
 use types::Snapshot;
 
-/// Main configuration file containing definitions of mirrors and external media.
+/// Main configuration file containing definitions of mirrors, external media and subscription keys.
 pub mod config;
 /// Helpers
 pub mod helpers;
@@ -27,6 +27,9 @@ pub mod helpers;
 pub mod medium;
 /// Operations concerning a mirror.
 pub mod mirror;
+/// Operations concerning subscription keys.
+pub mod subscription;
+
 /// Hardlink pool.
 pub(crate) mod pool;
 /// Various common types

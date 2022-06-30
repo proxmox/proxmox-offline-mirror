@@ -1,18 +1,20 @@
 use std::path::Path;
 
 use anyhow::Error;
-use proxmox_time::epoch_to_rfc3339_utc;
 use serde_json::Value;
 
 use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface, OUTPUT_FORMAT};
 use proxmox_schema::api;
+use proxmox_section_config::SectionConfigData;
+use proxmox_subscription::SubscriptionInfo;
+use proxmox_time::epoch_to_rfc3339_utc;
 
-use proxmox_apt_mirror::{
-    config::{MediaConfig, MirrorConfig},
+use proxmox_offline_mirror::{
+    config::{MediaConfig, MirrorConfig, SubscriptionKey},
     generate_repo_file_line,
     medium::{self},
     mirror,
-    types::{Snapshot, MIRROR_ID_SCHEMA},
+    types::{ProductType, Snapshot, MIRROR_ID_SCHEMA},
 };
 
 use super::DEFAULT_CONFIG_PATH;
@@ -43,7 +45,7 @@ async fn garbage_collect(
 ) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (section_config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MediaConfig = section_config.lookup("medium", &id)?;
 
     medium::gc(&config)?;
@@ -73,7 +75,7 @@ async fn garbage_collect(
 async fn status(config: Option<String>, id: String, _param: Value) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (section_config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let medium_config: MediaConfig = section_config.lookup("medium", &id)?;
 
     let (state, mirror_state) = medium::status(&medium_config)?;
@@ -132,6 +134,43 @@ async fn status(config: Option<String>, id: String, _param: Value) -> Result<Val
     Ok(Value::Null)
 }
 
+fn get_subscription_keys(
+    section_config: &SectionConfigData,
+) -> Result<Vec<SubscriptionInfo>, Error> {
+    let config_subscriptions: Vec<SubscriptionKey> =
+        section_config.convert_to_typed_array("subscription")?;
+
+    let mut subscription_infos = Vec::new();
+    for subscription in config_subscriptions {
+        if subscription.product() == ProductType::Pom {
+            continue;
+        }
+
+        match subscription.info() {
+            Ok(Some(info)) => {
+                eprintln!(
+                    "Including key '{}' for server '{}' with status '{}'",
+                    subscription.key, subscription.server_id, info.status
+                );
+                subscription_infos.push(info)
+            }
+            Ok(None) => eprintln!(
+                "No subscription info available for '{}' - run `refresh`.",
+                subscription.key
+            ),
+            Err(err) => eprintln!(
+                "Failed to parse subscription info of '{}' - {err}",
+                subscription.key
+            ),
+        }
+    }
+    eprintln!(
+        "will sync {} subscription keys to medium",
+        subscription_infos.len()
+    );
+    Ok(subscription_infos)
+}
+
 #[api(
     input: {
         properties: {
@@ -143,27 +182,40 @@ async fn status(config: Option<String>, id: String, _param: Value) -> Result<Val
             id: {
                 schema: MIRROR_ID_SCHEMA,
             },
-            "output-format": {
-                schema: OUTPUT_FORMAT,
+            "keys-only": {
+                type: bool,
+                default: false,
+                description: "Only sync offline subscription keys, skip repository contents",
                 optional: true,
             },
         }
     },
  )]
 /// Sync a medium
-async fn sync(config: Option<String>, id: String, _param: Value) -> Result<Value, Error> {
+async fn sync(
+    config: Option<String>,
+    id: String,
+    keys_only: bool,
+    _param: Value,
+) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (section_config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MediaConfig = section_config.lookup("medium", &id)?;
 
-    let mut mirrors = Vec::with_capacity(config.mirrors.len());
-    for mirror in &config.mirrors {
-        let mirror: MirrorConfig = section_config.lookup("mirror", mirror)?;
-        mirrors.push(mirror);
-    }
+    let subscription_infos = get_subscription_keys(&section_config)?;
 
-    medium::sync(&config, mirrors)?;
+    if keys_only {
+        medium::sync_keys(&config, subscription_infos)?;
+    } else {
+        let mut mirrors = Vec::with_capacity(config.mirrors.len());
+        for mirror in &config.mirrors {
+            let mirror: MirrorConfig = section_config.lookup("mirror", mirror)?;
+            mirrors.push(mirror);
+        }
+
+        medium::sync(&config, mirrors, subscription_infos)?;
+    }
 
     Ok(Value::Null)
 }

@@ -1,15 +1,16 @@
 [package]
-name = "proxmox-apt-mirror"
+name = "proxmox-offline-mirror"
 version = "0.1.0"
 authors = ["Fabian Grünbichler <f.gruenbichler@proxmox.com>"]
 edition = "2021"
 license = "AGPL-3"
-description = "Proxmox APT repository mirror"
+description = "Proxmox offline repository mirror and subscription key manager"
 
 exclude = ["debian"]
 
 [dependencies]
 anyhow = "1.0"
+base64 = "0.13"
 bzip2 = "0.4"
 flate2 = "1.0.22"
 hex = "0.4.3"
@@ -27,9 +28,11 @@ xz2 = "0.1"
 
 proxmox-apt = { path = "../proxmox-apt", version = "0.8.0" }
 proxmox-async = "0.4"
+proxmox-http = { version = "0.6.3", features = [ "client", "client-trait", "proxmox-async" ]}
 proxmox-router = { version = "1.1", features = [ "cli" ] }
 proxmox-schema = { version = "1.1", features = [ "api-macro" ] }
 proxmox-section-config = "1"
 proxmox-serde = "0.1"
+proxmox-subscription = { version = "0.1", features = [ "api-types" ] }
 proxmox-sys = { version = "0.3" }
 proxmox-time = { version = "1.1.3" }

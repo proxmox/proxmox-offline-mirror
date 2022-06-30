@@ -8,19 +8,21 @@ use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
 use proxmox_sys::linux::tty;
 
-use proxmox_apt_mirror::helpers::tty::{
+use proxmox_offline_mirror::helpers::tty::{
     read_bool_from_tty, read_selection_from_tty, read_string_from_tty,
 };
-use proxmox_apt_mirror::{
+use proxmox_offline_mirror::{
     config::{save_config, MediaConfig, MirrorConfig},
     mirror,
-    types::MIRROR_ID_SCHEMA,
+    types::{ProductType, MIRROR_ID_SCHEMA},
 };
 
-mod proxmox_apt_mirror_cmds;
-use proxmox_apt_mirror_cmds::*;
+mod proxmox_offline_mirror_cmds;
+use proxmox_offline_mirror_cmds::*;
 
 fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> {
+    let mut use_subscription = None;
+
     let (repository, key_path, architectures) = if read_bool_from_tty("Guided Setup", Some(true))? {
         enum Distro {
             Debian,
@@ -175,6 +177,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                 (url, key.to_string())
             }
             proxmox_product => {
+                #[derive(PartialEq)]
                 enum ProxmoxVariant {
                     Enterprise,
                     NoSubscription,
@@ -209,6 +212,13 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                     (Release::Buster, ProxmoxVariant::Test) => format!("http://download.proxmox.com/debian/{product} buster {product}test"),
                 };
 
+                use_subscription = match (proxmox_product, variant) {
+                    (Distro::Pbs, &ProxmoxVariant::Enterprise) => Some(ProductType::Pbs),
+                    (Distro::Pmg, &ProxmoxVariant::Enterprise) => Some(ProductType::Pmg),
+                    (Distro::Pve, &ProxmoxVariant::Enterprise) => Some(ProductType::Pve),
+                    _ => None,
+                };
+
                 let key = match release {
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
@@ -235,6 +245,19 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                 }
             })
             .collect();
+        let subscription_products = &[
+            (Some(ProductType::Pve), "PVE"),
+            (Some(ProductType::Pbs), "PBS"),
+            (Some(ProductType::Pmg), "PMG"),
+            (None, "None"),
+        ];
+        use_subscription = read_selection_from_tty(
+            "Does this repository require a valid Proxmox subscription key",
+            subscription_products,
+            None,
+        )?
+        .clone();
+
         (repo, key_path, architectures)
     };
 
@@ -281,6 +304,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         verify,
         sync,
         dir,
+        use_subscription,
     })
 }
 
@@ -430,9 +454,9 @@ async fn setup(_param: Value) -> Result<(), Error> {
     }
 
     let config_file = read_string_from_tty("Mirror config file", Some(DEFAULT_CONFIG_PATH))?;
-    let _lock = proxmox_apt_mirror::config::lock_config(&config_file)?;
+    let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
-    let (mut config, _digest) = proxmox_apt_mirror::config::config(&config_file)?;
+    let (mut config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
 
     if config.sections.is_empty() {
         println!("Initializing new config.");
@@ -492,6 +516,7 @@ fn main() {
     let cmd_def = CliCommandMap::new()
         .insert("setup", CliCommand::new(&API_METHOD_SETUP))
         .insert("config", config_commands())
+        .insert("key", key_commands())
         .insert("medium", medium_commands())
         .insert("mirror", mirror_commands());
 

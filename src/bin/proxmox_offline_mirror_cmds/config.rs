@@ -7,7 +7,7 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::{api, param_bail, ApiType, ArraySchema, ReturnType};
 
-use proxmox_apt_mirror::{
+use proxmox_offline_mirror::{
     config::{MediaConfig, MediaConfigUpdater, MirrorConfig, MirrorConfigUpdater},
     mirror,
     types::MIRROR_ID_SCHEMA,
@@ -54,14 +54,14 @@ pub const SHOW_MEDIUM_RETURN_TYPE: ReturnType = ReturnType {
 async fn list_mirror(config: Option<String>, param: Value) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: Vec<MirrorConfig> = config.convert_to_typed_array("mirror")?;
 
     let output_format = get_output_format(&param);
     let options = default_table_format_options()
         .column(ColumnConfig::new("id").header("ID"))
         .column(ColumnConfig::new("repository"))
-        .column(ColumnConfig::new("base-dir"))
+        .column(ColumnConfig::new("dir"))
         .column(ColumnConfig::new("verify"))
         .column(ColumnConfig::new("sync"));
 
@@ -97,7 +97,7 @@ async fn list_mirror(config: Option<String>, param: Value) -> Result<Value, Erro
 async fn show_mirror(config: Option<String>, id: String, param: Value) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let mut config = config.lookup_json("mirror", &id)?;
 
     let output_format = get_output_format(&param);
@@ -138,9 +138,9 @@ async fn add_mirror(
 ) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let _lock = proxmox_apt_mirror::config::lock_config(&config)?;
+    let _lock = proxmox_offline_mirror::config::lock_config(&config)?;
 
-    let (mut section_config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
 
     if section_config.sections.get(&data.id).is_some() {
         param_bail!("name", "mirror config entry '{}' already exists.", data.id);
@@ -149,7 +149,7 @@ async fn add_mirror(
     mirror::init(&data)?;
 
     section_config.set_data(&data.id, "mirror", &data)?;
-    proxmox_apt_mirror::config::save_config(&config, &section_config)?;
+    proxmox_offline_mirror::config::save_config(&config, &section_config)?;
 
     Ok(Value::Null)
 }
@@ -185,10 +185,10 @@ async fn remove_mirror(
 ) -> Result<Value, Error> {
     let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let _lock = proxmox_apt_mirror::config::lock_config(&config_file)?;
+    let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
     // TODO (optionally?) remove media entries?
-    let (mut section_config, _digest) = proxmox_apt_mirror::config::config(&config_file)?;
+    let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
     match section_config.lookup::<MirrorConfig>("mirror", &id) {
         Ok(config) => {
             if remove_data {
@@ -202,7 +202,7 @@ async fn remove_mirror(
         }
     }
 
-    proxmox_apt_mirror::config::save_config(&config_file, &section_config)?;
+    proxmox_offline_mirror::config::save_config(&config_file, &section_config)?;
 
     Ok(Value::Null)
 }
@@ -233,9 +233,9 @@ pub fn update_mirror(
 ) -> Result<(), Error> {
     let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let _lock = proxmox_apt_mirror::config::lock_config(&config_file)?;
+    let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
-    let (mut config, _digest) = proxmox_apt_mirror::config::config(&config_file)?;
+    let (mut config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
 
     let mut data: MirrorConfig = config.lookup("mirror", &id)?;
 
@@ -259,7 +259,7 @@ pub fn update_mirror(
     }
 
     config.set_data(&id, "mirror", &data)?;
-    proxmox_apt_mirror::config::save_config(&config_file, &config)?;
+    proxmox_offline_mirror::config::save_config(&config_file, &config)?;
 
     Ok(())
 }
@@ -283,7 +283,7 @@ pub fn update_mirror(
 async fn list_media(config: Option<String>, param: Value) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: Vec<MediaConfig> = config.convert_to_typed_array("medium")?;
 
     let output_format = get_output_format(&param);
@@ -326,7 +326,7 @@ async fn list_media(config: Option<String>, param: Value) -> Result<Value, Error
 async fn show_medium(config: Option<String>, id: String, param: Value) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let mut config = config.lookup_json("medium", &id)?;
 
     let output_format = get_output_format(&param);
@@ -367,9 +367,9 @@ async fn add_medium(
 ) -> Result<Value, Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let _lock = proxmox_apt_mirror::config::lock_config(&config)?;
+    let _lock = proxmox_offline_mirror::config::lock_config(&config)?;
 
-    let (mut section_config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
 
     if section_config.sections.get(&data.id).is_some() {
         param_bail!("name", "config section '{}' already exists.", data.id);
@@ -378,7 +378,7 @@ async fn add_medium(
     // TODO check mountpoint and mirrors exist?
 
     section_config.set_data(&data.id, "medium", &data)?;
-    proxmox_apt_mirror::config::save_config(&config, &section_config)?;
+    proxmox_offline_mirror::config::save_config(&config, &section_config)?;
 
     Ok(Value::Null)
 }
@@ -414,9 +414,9 @@ async fn remove_medium(
 ) -> Result<Value, Error> {
     let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let _lock = proxmox_apt_mirror::config::lock_config(&config_file)?;
+    let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
-    let (mut section_config, _digest) = proxmox_apt_mirror::config::config(&config_file)?;
+    let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
     match section_config.lookup::<MediaConfig>("medium", &id) {
         Ok(_config) => {
             if remove_data {
@@ -430,7 +430,7 @@ async fn remove_medium(
         }
     }
 
-    proxmox_apt_mirror::config::save_config(&config_file, &section_config)?;
+    proxmox_offline_mirror::config::save_config(&config_file, &section_config)?;
 
     Ok(Value::Null)
 }
@@ -461,9 +461,9 @@ pub fn update_medium(
 ) -> Result<(), Error> {
     let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let _lock = proxmox_apt_mirror::config::lock_config(&config_file)?;
+    let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
-    let (mut config, _digest) = proxmox_apt_mirror::config::config(&config_file)?;
+    let (mut config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
 
     let mut data: MediaConfig = config.lookup("medium", &id)?;
 
@@ -481,7 +481,7 @@ pub fn update_medium(
     }
 
     config.set_data(&id, "medium", &data)?;
-    proxmox_apt_mirror::config::save_config(&config_file, &config)?;
+    proxmox_offline_mirror::config::save_config(&config_file, &config)?;
 
     Ok(())
 }

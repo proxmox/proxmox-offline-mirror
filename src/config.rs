@@ -2,13 +2,16 @@ use std::path::Path;
 
 use anyhow::{bail, Error};
 use lazy_static::lazy_static;
+use proxmox_subscription::{sign::ServerBlob, SubscriptionInfo};
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, ApiType, Schema, Updater};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 use proxmox_sys::fs::{replace_file, CreateOptions};
 
-use crate::types::MIRROR_ID_SCHEMA;
+use crate::types::{
+    ProductType, MIRROR_ID_SCHEMA, PROXMOX_SERVER_ID_SCHEMA, PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
+};
 
 #[api(
     properties: {
@@ -58,6 +61,9 @@ pub struct MirrorConfig {
     pub verify: bool,
     /// Whether to write new files using FSYNC.
     pub sync: bool,
+    /// Use subscription key to access (required for Proxmox Enterprise repositories).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub use_subscription: Option<ProductType>,
 }
 
 #[api(
@@ -99,6 +105,75 @@ pub struct MediaConfig {
     pub sync: bool,
 }
 
+#[api(
+    properties: {
+        key: {
+            schema: PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
+        },
+        "server-id": {
+            schema: PROXMOX_SERVER_ID_SCHEMA,
+        },
+        description: {
+            type: String,
+            optional: true,
+        },
+        info: {
+            type: String,
+            description: "base64 encoded subscription info - update with 'refresh' command.",
+            optional: true,
+        },
+    },
+)]
+#[derive(Clone, Debug, Serialize, Deserialize, Updater)]
+#[serde(rename_all = "kebab-case")]
+/// Subscription key used for accessing enterprise repositories and for offline subscription activation/renewal.
+pub struct SubscriptionKey {
+    /// Subscription key
+    #[updater(skip)]
+    pub key: String,
+    /// Server ID for this subscription key
+    pub server_id: String,
+    /// Description, e.g. which system this key is deployed on
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Last Subscription Key state
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[updater(skip)]
+    pub info: Option<String>,
+}
+
+impl Into<ServerBlob> for SubscriptionKey {
+    fn into(self) -> ServerBlob {
+        ServerBlob {
+            key: self.key,
+            serverid: self.server_id,
+        }
+    }
+}
+
+impl SubscriptionKey {
+    pub fn product(&self) -> ProductType {
+        match &self.key[..3] {
+            "pve" => ProductType::Pve,
+            "pmg" => ProductType::Pmg,
+            "pbs" => ProductType::Pbs,
+            "pom" => ProductType::Pom, // TODO replace with actual key prefix
+            _ => unimplemented!(),
+        }
+    }
+
+    pub fn info(&self) -> Result<Option<SubscriptionInfo>, Error> {
+        match self.info.as_ref() {
+            Some(info) => {
+                let info = base64::decode(info)?;
+                let info = serde_json::from_slice(&info)?;
+                Ok(Some(info))
+            }
+            None => Ok(None),
+        }
+    }
+}
+
 lazy_static! {
     static ref CONFIG: SectionConfig = init();
 }
@@ -124,6 +199,17 @@ fn init() -> SectionConfig {
     let media_plugin =
         SectionConfigPlugin::new("medium".to_string(), Some(String::from("id")), media_schema);
     config.register_plugin(media_plugin);
+
+    let key_schema = match SubscriptionKey::API_SCHEMA {
+        Schema::Object(ref obj_schema) => obj_schema,
+        _ => unreachable!(),
+    };
+    let key_plugin = SectionConfigPlugin::new(
+        "subscription".to_string(),
+        Some(String::from("key")),
+        key_schema,
+    );
+    config.register_plugin(key_plugin);
 
     config
 }

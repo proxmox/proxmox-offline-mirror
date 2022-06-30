@@ -5,13 +5,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 use flate2::bufread::GzDecoder;
 use nix::libc;
 use proxmox_sys::fs::file_get_contents;
+use ureq::Agent;
 
 use crate::{
-    config::MirrorConfig,
+    config::{MirrorConfig, SubscriptionKey},
     convert_repo_line,
     pool::Pool,
     types::{Snapshot, SNAPSHOT_REGEX},
@@ -39,6 +40,8 @@ struct ParsedMirrorConfig {
     pub key: Vec<u8>,
     pub verify: bool,
     pub sync: bool,
+    pub auth: Option<String>,
+    pub agent: Agent,
 }
 
 impl TryInto<ParsedMirrorConfig> for MirrorConfig {
@@ -51,6 +54,10 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
 
         let key = file_get_contents(Path::new(&self.key_path))?;
 
+        let agent = ureq::builder()
+            .user_agent("proxmox-apt-mirror 0.1") // TODO actually read version ;)
+            .build();
+
         Ok(ParsedMirrorConfig {
             repository,
             architectures: self.architectures,
@@ -58,6 +65,8 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
             key,
             verify: self.verify,
             sync: self.sync,
+            auth: None,
+            agent,
         })
     }
 }
@@ -87,13 +96,21 @@ fn get_repo_url(repo: &APTRepository, path: &str) -> String {
 ///
 /// Only fetches and returns data, doesn't store anything anywhere.
 fn fetch_repo_file(
+    agent: &Agent,
     uri: &str,
     max_size: Option<u64>,
     checksums: Option<&CheckSums>,
+    auth: Option<&str>,
 ) -> Result<FetchResult, Error> {
     println!("-> GET '{}'..", uri);
 
-    let response = ureq::get(uri).call()?.into_reader();
+    let request = if let Some(auth) = auth {
+        agent.get(uri).set("Authorization", auth)
+    } else {
+        agent.get(uri)
+    };
+
+    let response = request.call()?.into_reader();
 
     let mut data = Vec::new();
     let bytes = response
@@ -120,20 +137,30 @@ fn fetch_release(
 ) -> Result<FetchResult, Error> {
     let (name, fetched, sig) = if detached {
         println!("Fetching Release/Release.gpg files");
-        let sig = fetch_repo_file(&get_dist_url(&config.repository, "Release.gpg"), None, None)?;
+        let sig = fetch_repo_file(
+            &config.agent,
+            &get_dist_url(&config.repository, "Release.gpg"),
+            None,
+            None,
+            config.auth.as_deref(),
+        )?;
         let mut fetched = fetch_repo_file(
+            &config.agent,
             &get_dist_url(&config.repository, "Release"),
             Some(32_000_000),
             None,
+            config.auth.as_deref(),
         )?;
         fetched.fetched += sig.fetched;
         ("Release(.gpg)", fetched, Some(sig.data()))
     } else {
         println!("Fetching InRelease file");
         let fetched = fetch_repo_file(
+            &config.agent,
             &get_dist_url(&config.repository, "InRelease"),
             Some(32_000_000),
             None,
+            config.auth.as_deref(),
         )?;
         ("InRelease", fetched, None)
     };
@@ -281,7 +308,13 @@ fn fetch_plain_file(
             }
         }
     } else {
-        let fetched = fetch_repo_file(url, Some(5_000_000_000), Some(checksums))?;
+        let fetched = fetch_repo_file(
+            &config.agent,
+            url,
+            Some(5_000_000_000),
+            Some(checksums),
+            config.auth.as_deref(),
+        )?;
         locked.add_file(fetched.data_ref(), checksums, config.verify)?;
         fetched
     };
@@ -341,8 +374,37 @@ pub fn list_snapshots(config: &MirrorConfig) -> Result<Vec<Snapshot>, Error> {
 /// - Fetch binary packages referenced by package indices
 ///
 /// Files will be linked in a temporary directory and only renamed to the final, valid snapshot directory at the end. In case of error, leftover `XXX.tmp` directories at the top level of `base_dir` can be safely removed once the next snapshot was successfully created, as they only contain hardlinks.
-pub fn create_snapshot(config: MirrorConfig, snapshot: &Snapshot) -> Result<(), Error> {
-    let config: ParsedMirrorConfig = config.try_into()?;
+pub fn create_snapshot(
+    config: MirrorConfig,
+    snapshot: &Snapshot,
+    subscription: Option<SubscriptionKey>,
+) -> Result<(), Error> {
+    let auth = if let Some(product) = &config.use_subscription {
+        match subscription {
+            None => {
+                bail!(
+                    "Mirror {} requires a subscription key, but none given.",
+                    config.id
+                );
+            }
+            Some(key) if key.product() == *product => {
+                let base64 = base64::encode(format!("{}:{}", key.key, key.server_id));
+                Some(format!("basic {base64}"))
+            }
+            Some(key) => {
+                bail!(
+                    "Repository product type '{}' and key product type '{}' don't match.",
+                    product,
+                    key.product()
+                );
+            }
+        }
+    } else {
+        None
+    };
+
+    let mut config: ParsedMirrorConfig = config.try_into()?;
+    config.auth = auth;
 
     let prefix = format!("{snapshot}.tmp");
     let prefix = Path::new(&prefix);

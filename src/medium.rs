@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::{bail, format_err, Error};
 use nix::libc;
+use proxmox_subscription::SubscriptionInfo;
 use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_time::{epoch_i64, epoch_to_rfc3339_utc};
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,9 @@ pub struct MediumState {
     pub mirrors: HashMap<String, MirrorInfo>,
     /// Timestamp of last sync operation.
     pub last_sync: i64,
+    /// Subscriptions
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub subscriptions: Vec<SubscriptionInfo>,
 }
 
 /// Information about the mirrors on a medium.
@@ -246,8 +250,53 @@ pub fn status(
     Ok((state, mirror_state))
 }
 
+/// Sync only subscription keys to medium
+pub fn sync_keys(
+    medium: &crate::config::MediaConfig,
+    subscriptions: Vec<SubscriptionInfo>,
+) -> Result<(), Error> {
+    let medium_base = Path::new(&medium.mountpoint);
+    if !medium_base.exists() {
+        bail!("Medium mountpoint doesn't exist.");
+    }
+
+    let lock = lock(medium_base)?;
+
+    let mut state = match load_state(medium_base)? {
+        Some(state) => {
+            println!("Loaded existing statefile.");
+            println!(
+                "Last sync timestamp: {}",
+                epoch_to_rfc3339_utc(state.last_sync)?
+            );
+            state
+        }
+        None => {
+            println!("Creating new statefile..");
+            MediumState {
+                mirrors: HashMap::new(),
+                last_sync: 0,
+                subscriptions: vec![],
+            }
+        }
+    };
+
+    state.last_sync = epoch_i64();
+    println!("Sync timestamp: {}", epoch_to_rfc3339_utc(state.last_sync)?);
+
+    println!("Updating statefile..");
+    state.subscriptions = subscriptions;
+    write_state(&lock, medium_base, &state)?;
+
+    Ok(())
+}
+
 /// Sync medium's content according to config.
-pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> Result<(), Error> {
+pub fn sync(
+    medium: &crate::config::MediaConfig,
+    mirrors: Vec<MirrorConfig>,
+    subscriptions: Vec<SubscriptionInfo>,
+) -> Result<(), Error> {
     println!(
         "Syncing {} mirrors {:?} to medium '{}' ({:?})",
         &medium.mirrors.len(),
@@ -281,6 +330,7 @@ pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> 
             MediumState {
                 mirrors: HashMap::new(),
                 last_sync: 0,
+                subscriptions: vec![],
             }
         }
     };
@@ -353,7 +403,7 @@ pub fn sync(medium: &crate::config::MediaConfig, mirrors: Vec<MirrorConfig>) -> 
     }
 
     println!("Updating statefile..");
-    // TODO update state file for exporting/subscription key handling/..?
+    state.subscriptions = subscriptions;
     write_state(&lock, medium_base, &state)?;
 
     Ok(())

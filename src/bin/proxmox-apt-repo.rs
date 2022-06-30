@@ -1,17 +1,47 @@
+use std::process::Command;
 use std::{collections::HashMap, path::Path};
 
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 
-use proxmox_apt_mirror::types::Snapshot;
+use proxmox_offline_mirror::types::{ProductType, Snapshot};
+use proxmox_subscription::SubscriptionInfo;
+use proxmox_sys::command::run_command;
 use proxmox_sys::{fs::file_get_contents, linux::tty};
 use proxmox_time::epoch_to_rfc3339_utc;
 use serde_json::Value;
 
 use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment};
-use proxmox_schema::api;
+use proxmox_schema::{api, param_bail};
 
-use proxmox_apt_mirror::helpers::tty::{read_selection_from_tty, read_string_from_tty};
-use proxmox_apt_mirror::medium::{self, generate_repo_snippet, MediumState};
+use proxmox_offline_mirror::helpers::tty::{read_selection_from_tty, read_string_from_tty};
+use proxmox_offline_mirror::medium::{self, generate_repo_snippet, MediumState};
+
+fn set_subscription_key(
+    product: ProductType,
+    subscription: &SubscriptionInfo,
+) -> Result<String, Error> {
+    let data = base64::encode(serde_json::to_vec(subscription)?);
+
+    let cmd = match product {
+        ProductType::Pve => {
+            let mut cmd = Command::new("pvesubscription");
+            cmd.arg("set-offline-key");
+            cmd.arg(data);
+            cmd
+        }
+        ProductType::Pbs => {
+            let mut cmd = Command::new("proxmox-backup-manager");
+            cmd.arg("subscription");
+            cmd.arg("set-offline-key");
+            cmd.arg(data);
+            cmd
+        }
+        ProductType::Pmg => todo!(),
+        ProductType::Pom => unreachable!(),
+    };
+
+    run_command(cmd, Some(|v| v == 0))
+}
 
 #[api(
     input: {
@@ -57,6 +87,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
         SelectMirrorSnapshot,
         DeselectMirrorSnapshot,
         PrintSourcesList,
+        UpdateOfflineSubscription,
         Quit,
     }
     let actions = &[
@@ -71,6 +102,10 @@ async fn setup(_param: Value) -> Result<(), Error> {
         (
             Action::PrintSourcesList,
             "Print 'sources.list.d' snippet for accessing selected repositories.",
+        ),
+        (
+            Action::UpdateOfflineSubscription,
+            "Update offline subscription key",
         ),
         (Action::Quit, "Quit."),
     ];
@@ -160,6 +195,37 @@ async fn setup(_param: Value) -> Result<(), Error> {
                 println!("And run 'apt update && apt full-upgrade'");
                 println!();
             }
+            Action::UpdateOfflineSubscription => {
+                let server_id = proxmox_subscription::get_hardware_address()?;
+                let subscriptions: Vec<(&SubscriptionInfo, &str)> = state
+                    .subscriptions
+                    .iter()
+                    .filter_map(|s| {
+                        if let Some(key) = s.key.as_ref() {
+                            if let Ok(product) = key[..3].parse::<ProductType>() {
+                                if product == ProductType::Pom {
+                                    return None;
+                                } else {
+                                    return Some((s, key.as_str()));
+                                }
+                            }
+                        }
+                        return None;
+                    })
+                    .collect();
+
+                if subscriptions.is_empty() {
+                    println!(
+                        "No matching subscription key found for server ID '{}'",
+                        server_id
+                    );
+                } else {
+                    let info = read_selection_from_tty("Select key", &subscriptions, None)?;
+                    // safe unwrap, checked above!
+                    let product: ProductType = info.key.as_ref().unwrap()[..3].parse()?;
+                    set_subscription_key(product, info)?;
+                }
+            }
             Action::Quit => {
                 break;
             }
@@ -168,10 +234,98 @@ async fn setup(_param: Value) -> Result<(), Error> {
 
     Ok(())
 }
+
+#[api(
+    input: {
+        properties: {
+            mountpoint: {
+                type: String,
+                optional: true,
+                description: "Path to medium mountpoint - defaults to `proxmox-apt-repo` containing directory.",
+            },
+            product: {
+                type: ProductType,
+            },
+        },
+    },
+)]
+/// Configures and offline subscription key
+async fn setup_offline_key(
+    mountpoint: Option<String>,
+    product: ProductType,
+    _param: Value,
+) -> Result<(), Error> {
+    if product == ProductType::Pom {
+        param_bail!(
+            "product",
+            format_err!("Proxmox Offline Mirror does not support offline operations.")
+        );
+    }
+
+    let mountpoint = mountpoint
+        .or_else(|| {
+            std::env::current_exe().map_or_else(
+                |_| None,
+                |mut p| {
+                    p.pop();
+                    let p = p.to_str();
+                    p.map(str::to_string)
+                },
+            )
+        })
+        .ok_or_else(|| {
+            format_err!("Failed to determine fallback mountpoint via executable path.")
+        })?;
+
+    let mountpoint = Path::new(&mountpoint);
+    if !mountpoint.exists() {
+        bail!("Medium mountpoint doesn't exist.");
+    }
+
+    let mut statefile = mountpoint.to_path_buf();
+    statefile.push(".mirror-state");
+
+    println!("Loading state from {statefile:?}..");
+    let raw = file_get_contents(&statefile)?;
+    let state: MediumState = serde_json::from_slice(&raw)?;
+    println!(
+        "Last sync timestamp: {}",
+        epoch_to_rfc3339_utc(state.last_sync)?
+    );
+
+    let server_id = proxmox_subscription::get_hardware_address()?;
+    let subscription = state.subscriptions.iter().find(|s| {
+        if let Some(key) = s.key.as_ref() {
+            if let Ok(found_product) = key[..3].parse::<ProductType>() {
+                return product == found_product;
+            }
+        }
+        return false;
+    });
+
+    match subscription {
+        Some(subscription) => {
+            eprintln!("Setting offline subscription key for {product}..");
+            match set_subscription_key(product, subscription) {
+                Ok(output) if !output.is_empty() => eprintln!("success: {output}"),
+                Ok(_) => eprintln!("success."),
+                Err(err) => eprintln!("error: {err}"),
+            }
+            Ok(())
+        }
+        None => bail!("No matching subscription key found for product '{product}' and server ID '{server_id}'"),
+    }
+}
+
 fn main() {
     let rpcenv = CliEnvironment::new();
 
-    let cmd_def = CliCommandMap::new().insert("setup", CliCommand::new(&API_METHOD_SETUP));
+    let cmd_def = CliCommandMap::new()
+        .insert("setup", CliCommand::new(&API_METHOD_SETUP))
+        .insert(
+            "offline-key",
+            CliCommand::new(&API_METHOD_SETUP_OFFLINE_KEY),
+        );
 
     run_cli_command(
         cmd_def,

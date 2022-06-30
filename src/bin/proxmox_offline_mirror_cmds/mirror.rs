@@ -1,5 +1,6 @@
-use anyhow::Error;
+use anyhow::{format_err, Error};
 
+use proxmox_subscription::SubscriptionStatus;
 use serde_json::Value;
 
 use proxmox_router::cli::{
@@ -8,8 +9,8 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::api;
 
-use proxmox_apt_mirror::{
-    config::MirrorConfig,
+use proxmox_offline_mirror::{
+    config::{MirrorConfig, SubscriptionKey},
     mirror,
     types::{Snapshot, MIRROR_ID_SCHEMA},
 };
@@ -34,10 +35,33 @@ use super::DEFAULT_CONFIG_PATH;
 async fn create_snapshot(config: Option<String>, id: String, _param: Value) -> Result<(), Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
-    let config = config.lookup("mirror", &id)?;
+    let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
+    let config: MirrorConfig = section_config.lookup("mirror", &id)?;
 
-    proxmox_apt_mirror::mirror::create_snapshot(config, &Snapshot::now())?;
+    let subscription = if let Some(product) = &config.use_subscription {
+        let subscriptions: Vec<SubscriptionKey> =
+            section_config.convert_to_typed_array("subscription")?;
+        let key = subscriptions
+            .iter()
+            .find(|key| {
+                if let Ok(Some(info)) = key.info() {
+                    info.status == SubscriptionStatus::ACTIVE && key.product() == *product
+                } else {
+                    false
+                }
+            })
+            .ok_or_else(|| {
+                format_err!(
+                    "Need matching active subscription key for product {product}, but none found."
+                )
+            })?
+            .clone();
+        Some(key)
+    } else {
+        None
+    };
+
+    proxmox_offline_mirror::mirror::create_snapshot(config, &Snapshot::now(), subscription)?;
 
     Ok(())
 }
@@ -65,7 +89,7 @@ async fn list_snapshots(config: Option<String>, id: String, param: Value) -> Res
     let output_format = get_output_format(&param);
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;
 
     let list = mirror::list_snapshots(&config)?;
@@ -113,7 +137,7 @@ async fn remove_snapshot(
 ) -> Result<(), Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;
     mirror::remove_snapshot(&config, &snapshot)?;
 
@@ -142,7 +166,7 @@ async fn remove_snapshot(
 async fn garbage_collect(config: Option<String>, id: String, _param: Value) -> Result<(), Error> {
     let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
 
-    let (config, _digest) = proxmox_apt_mirror::config::config(&config)?;
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;
 
     let (count, size) = mirror::gc(&config)?;
