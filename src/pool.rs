@@ -212,7 +212,8 @@ impl PoolLockGuard<'_> {
                         }
                     }
                     len => {
-                        bail!("Invalid checksum file name length {len}: {path:?}")
+                        eprintln!("Invalid checksum file name length {len}: {path:?}");
+                        continue;
                     }
                 };
 
