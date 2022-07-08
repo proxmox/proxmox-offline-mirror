@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::process::Command;
 use std::{collections::HashMap, path::Path};
 
@@ -6,6 +7,7 @@ use anyhow::{bail, format_err, Error};
 use proxmox_offline_mirror::types::{ProductType, Snapshot};
 use proxmox_subscription::SubscriptionInfo;
 use proxmox_sys::command::run_command;
+use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_sys::{fs::file_get_contents, linux::tty};
 use proxmox_time::epoch_to_rfc3339_utc;
 use serde_json::Value;
@@ -13,7 +15,9 @@ use serde_json::Value;
 use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment};
 use proxmox_schema::{api, param_bail};
 
-use proxmox_offline_mirror::helpers::tty::{read_selection_from_tty, read_string_from_tty};
+use proxmox_offline_mirror::helpers::tty::{
+    read_bool_from_tty, read_selection_from_tty, read_string_from_tty,
+};
 use proxmox_offline_mirror::medium::{self, generate_repo_snippet, MediumState};
 
 fn set_subscription_key(
@@ -86,7 +90,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
     enum Action {
         SelectMirrorSnapshot,
         DeselectMirrorSnapshot,
-        PrintSourcesList,
+        GenerateSourcesList,
         UpdateOfflineSubscription,
         Quit,
     }
@@ -100,8 +104,8 @@ async fn setup(_param: Value) -> Result<(), Error> {
             "Remove mirror & snapshot from selected repositories.",
         ),
         (
-            Action::PrintSourcesList,
-            "Print 'sources.list.d' snippet for accessing selected repositories.",
+            Action::GenerateSourcesList,
+            "Generate 'sources.list.d' snippet for accessing selected repositories.",
         ),
         (
             Action::UpdateOfflineSubscription,
@@ -183,16 +187,34 @@ async fn setup(_param: Value) -> Result<(), Error> {
                     read_selection_from_tty("Deselect mirror", &mirrors, None)?.to_string();
                 selected_repos.remove(&selected_mirror);
             }
-            Action::PrintSourcesList => {
+            Action::GenerateSourcesList => {
                 let lines = generate_repo_snippet(mountpoint, &selected_repos)?;
-                println!(
-                    "Put the following into '/etc/apt/sources.list.d/proxmox-apt-mirror.list'"
-                );
+                println!("Generated sources.list.d snippet:");
+                let data = lines.join("\n");
                 println!();
                 println!("-----8<-----");
-                println!("{}", lines.join("\n"));
+                println!("{data}");
                 println!("----->8-----");
-                println!("And run 'apt update && apt full-upgrade'");
+                if read_bool_from_tty("Configure snippet as repository source", Some(true))? {
+                    let snippet_file_name = loop {
+                        let file = read_string_from_tty(
+                            "Enter filename under '/etc/apt/sources.list.d/' (will be overwritten)",
+                            Some("offline-mirror.list"),
+                        )?;
+                        if file.contains("/") {
+                            eprintln!("Invalid file name.");
+                        } else {
+                            break file;
+                        }
+                    };
+                    let mut file = PathBuf::from("/etc/apt/sources.list.d");
+                    file.push(snippet_file_name);
+                    replace_file(file, data.as_bytes(), CreateOptions::default(), true)?;
+                } else {
+                    println!("Add above snippet to system's repository entries (/etc/apt/sources.list.d/) manually to configure.");
+                }
+
+                println!("Now run 'apt update && apt full-upgrade' to upgrade system.");
                 println!();
             }
             Action::UpdateOfflineSubscription => {
