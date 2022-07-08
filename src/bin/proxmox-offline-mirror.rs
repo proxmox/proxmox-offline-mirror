@@ -110,7 +110,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                         "/usr/share/keyrings/debian-archive-bullseye-security-automatic.gpg"
                     }
                     (Release::Bullseye, _) => {
-                        "/usr/share/keyrings/debian-archive-bullseye-stable.gpg"
+                        "/usr/share/keyrings/debian-archive-bullseye-automatic.gpg"
                     }
                     (Release::Buster, DebianVariant::Security) => {
                         "/usr/share/keyrings/debian-archive-buster-security-automatic.gpg"
