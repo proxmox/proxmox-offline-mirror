@@ -15,7 +15,7 @@ use proxmox_offline_mirror::helpers::tty::{
 use proxmox_offline_mirror::{
     config::{save_config, MediaConfig, MirrorConfig},
     mirror,
-    types::{ProductType, MIRROR_ID_SCHEMA},
+    types::{ProductType, MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA},
 };
 
 mod proxmox_offline_mirror_cmds;
@@ -463,7 +463,7 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
 
     let id = loop {
         let mut id = read_string_from_tty("Enter medium ID", None)?;
-        while let Err(err) = MIRROR_ID_SCHEMA.parse_simple_value(&id) {
+        while let Err(err) = MEDIA_ID_SCHEMA.parse_simple_value(&id) {
             eprintln!("Not a valid medium ID: {err}");
             id = read_string_from_tty("Enter medium ID", None)?;
         }

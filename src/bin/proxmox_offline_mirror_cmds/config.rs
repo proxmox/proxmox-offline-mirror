@@ -10,7 +10,7 @@ use proxmox_schema::{api, param_bail, ApiType, ArraySchema, ReturnType};
 use proxmox_offline_mirror::{
     config::{MediaConfig, MediaConfigUpdater, MirrorConfig, MirrorConfigUpdater},
     mirror,
-    types::MIRROR_ID_SCHEMA,
+    types::{MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA},
 };
 
 pub const DEFAULT_CONFIG_PATH: &str = "/etc/proxmox-apt-mirror.cfg";
@@ -313,7 +313,7 @@ async fn list_media(config: Option<String>, param: Value) -> Result<Value, Error
                 description: "Path to mirroring config file.",
             },
             id: {
-                schema: MIRROR_ID_SCHEMA,
+                schema: MEDIA_ID_SCHEMA,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -392,7 +392,7 @@ async fn add_medium(
                 description: "Path to mirroring config file.",
             },
             id: {
-                schema: MIRROR_ID_SCHEMA,
+                schema: MEDIA_ID_SCHEMA,
             },
             "remove-data": {
                 type: bool,
@@ -444,7 +444,7 @@ async fn remove_medium(
                 description: "Path to mirroring config file.",
             },
             id: {
-                schema: MIRROR_ID_SCHEMA,
+                schema: MEDIA_ID_SCHEMA,
             },
             update: {
                 type: MediaConfigUpdater,

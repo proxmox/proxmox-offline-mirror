@@ -177,13 +177,25 @@ async fn garbage_collect(config: Option<String>, id: String, _param: Value) -> R
 }
 pub fn mirror_commands() -> CommandLineInterface {
     let snapshot_cmds = CliCommandMap::new()
-        .insert("create", CliCommand::new(&API_METHOD_CREATE_SNAPSHOT))
-        .insert("list", CliCommand::new(&API_METHOD_LIST_SNAPSHOTS))
-        .insert("remove", CliCommand::new(&API_METHOD_REMOVE_SNAPSHOT));
+        .insert(
+            "create",
+            CliCommand::new(&API_METHOD_CREATE_SNAPSHOT).arg_param(&["id"]),
+        )
+        .insert(
+            "list",
+            CliCommand::new(&API_METHOD_LIST_SNAPSHOTS).arg_param(&["id"]),
+        )
+        .insert(
+            "remove",
+            CliCommand::new(&API_METHOD_REMOVE_SNAPSHOT).arg_param(&["id", "snapshot"]),
+        );
 
     let cmd_def = CliCommandMap::new()
         .insert("snapshot", snapshot_cmds)
-        .insert("gc", CliCommand::new(&API_METHOD_GARBAGE_COLLECT));
+        .insert(
+            "gc",
+            CliCommand::new(&API_METHOD_GARBAGE_COLLECT).arg_param(&["id"]),
+        );
 
     cmd_def.into()
 }

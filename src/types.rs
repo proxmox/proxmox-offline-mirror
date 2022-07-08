@@ -26,6 +26,13 @@ pub const MIRROR_ID_SCHEMA: Schema = StringSchema::new("Mirror name.")
     .max_length(32)
     .schema();
 
+/// Schema for config IDs
+pub const MEDIA_ID_SCHEMA: Schema = StringSchema::new("Medium name.")
+    .format(&PROXMOX_SAFE_ID_FORMAT)
+    .min_length(3)
+    .max_length(32)
+    .schema();
+
 #[rustfmt::skip]
 #[macro_export]
 macro_rules! PROXMOX_SUBSCRIPTION_KEY_REGEX_STR { () => { r"(?:pom-|pve\d+[a-z]-|pbs[a-z]-|pmg[a-z]-).*" }; }

@@ -348,14 +348,23 @@ async fn remove_key(config: Option<String>, key: String, _param: Value) -> Resul
 
 pub fn key_commands() -> CommandLineInterface {
     CliCommandMap::new()
-        .insert("add", CliCommand::new(&API_METHOD_ADD_KEY))
+        .insert(
+            "add",
+            CliCommand::new(&API_METHOD_ADD_KEY).arg_param(&["key", "server-id"]),
+        )
         .insert(
             "add-mirror-key",
-            CliCommand::new(&API_METHOD_ADD_MIRROR_KEY),
+            CliCommand::new(&API_METHOD_ADD_MIRROR_KEY).arg_param(&["key"]),
         )
-        .insert("update", CliCommand::new(&API_METHOD_UPDATE_KEY))
+        .insert(
+            "update",
+            CliCommand::new(&API_METHOD_UPDATE_KEY).arg_param(&["key"]),
+        )
         .insert("refresh", CliCommand::new(&API_METHOD_REFRESH_KEYS))
-        .insert("remove", CliCommand::new(&API_METHOD_REMOVE_KEY))
+        .insert(
+            "remove",
+            CliCommand::new(&API_METHOD_REMOVE_KEY).arg_param(&["key"]),
+        )
         .insert("list", CliCommand::new(&API_METHOD_LIST_KEYS))
         .into()
 }

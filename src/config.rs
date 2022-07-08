@@ -10,7 +10,8 @@ use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlug
 use proxmox_sys::fs::{replace_file, CreateOptions};
 
 use crate::types::{
-    ProductType, MIRROR_ID_SCHEMA, PROXMOX_SERVER_ID_SCHEMA, PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
+    ProductType, MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA, PROXMOX_SERVER_ID_SCHEMA,
+    PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
 };
 
 #[api(
@@ -69,7 +70,7 @@ pub struct MirrorConfig {
 #[api(
     properties: {
         id: {
-            schema: MIRROR_ID_SCHEMA,
+            schema: MEDIA_ID_SCHEMA,
         },
         mountpoint: {
             type: String,

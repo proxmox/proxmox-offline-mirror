@@ -14,7 +14,7 @@ use proxmox_offline_mirror::{
     generate_repo_file_line,
     medium::{self},
     mirror,
-    types::{ProductType, Snapshot, MIRROR_ID_SCHEMA},
+    types::{ProductType, Snapshot, MEDIA_ID_SCHEMA},
 };
 
 use super::DEFAULT_CONFIG_PATH;
@@ -28,7 +28,7 @@ use super::DEFAULT_CONFIG_PATH;
                 description: "Path to mirroring config file.",
             },
             id: {
-                schema: MIRROR_ID_SCHEMA,
+                schema: MEDIA_ID_SCHEMA,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -62,7 +62,7 @@ async fn garbage_collect(
                 description: "Path to mirroring config file.",
             },
             id: {
-                schema: MIRROR_ID_SCHEMA,
+                schema: MEDIA_ID_SCHEMA,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -180,7 +180,7 @@ fn get_subscription_keys(
                 description: "Path to mirroring config file.",
             },
             id: {
-                schema: MIRROR_ID_SCHEMA,
+                schema: MEDIA_ID_SCHEMA,
             },
             "keys-only": {
                 type: bool,
@@ -222,9 +222,15 @@ async fn sync(
 
 pub fn medium_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
-        .insert("gc", CliCommand::new(&API_METHOD_GARBAGE_COLLECT))
-        .insert("status", CliCommand::new(&API_METHOD_STATUS))
-        .insert("sync", CliCommand::new(&API_METHOD_SYNC));
+        .insert(
+            "gc",
+            CliCommand::new(&API_METHOD_GARBAGE_COLLECT).arg_param(&["id"]),
+        )
+        .insert(
+            "status",
+            CliCommand::new(&API_METHOD_STATUS).arg_param(&["id"]),
+        )
+        .insert("sync", CliCommand::new(&API_METHOD_SYNC).arg_param(&["id"]));
 
     cmd_def.into()
 }
