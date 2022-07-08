@@ -363,6 +363,8 @@ pub fn list_snapshots(config: &MirrorConfig) -> Result<Vec<Snapshot>, Error> {
         },
     )?;
 
+    list.sort_unstable();
+
     Ok(list)
 }
 
