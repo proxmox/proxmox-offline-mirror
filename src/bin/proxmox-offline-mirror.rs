@@ -270,7 +270,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         (format!("deb {url}"), key_path, architectures, suggested_id)
     } else {
         let repo = read_string_from_tty("Enter repository line in sources.list format", None)?;
-        let key_path = read_string_from_tty("Enter path to repository key file", None)?;
+        let key_path = read_string_from_tty("Enter (absolute) path to repository key file", None)?;
         let architectures =
             read_string_from_tty("Enter list of architectures to mirror", Some("amd64,all"))?;
         let architectures: Vec<String> = architectures
@@ -319,9 +319,13 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
     };
 
     let dir = loop {
-        let path =
-            read_string_from_tty("Enter path where mirrored repository will be stored", None)?;
-        if Path::new(&path).exists() {
+        let path = read_string_from_tty(
+            "Enter (absolute) path where mirrored repository will be stored",
+            Some("/var/lib/proxmox-apt-mirror/mirrors/{id}"),
+        )?;
+        if !path.starts_with("/") {
+            eprintln!("Path must start with '/'");
+        } else if Path::new(&path).exists() {
             eprintln!("Path already exists.");
         } else {
             break path;
@@ -348,7 +352,12 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
 
 fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
     let mountpoint = loop {
-        let path = read_string_from_tty("Enter path where medium is mounted", None)?;
+        let path = read_string_from_tty("Enter (absolute) path where medium is mounted", None)?;
+        if !path.starts_with('/') {
+            eprintln!("Path must start with '/'");
+            continue;
+        }
+
         let mountpoint = Path::new(&path);
         if !mountpoint.exists() {
             eprintln!("Path doesn't exist.");
@@ -380,20 +389,17 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
         Proceed,
     }
     let actions = &[
-        (Action::SelectMirror, "Add mirror to selected mirrors."),
-        (
-            Action::DeselectMirror,
-            "Remove mirror from selected mirrors.",
-        ),
+        (Action::SelectMirror, "Add mirror to selection."),
+        (Action::DeselectMirror, "Remove mirror from selection."),
         (Action::Proceed, "Proceed"),
     ];
 
     loop {
         println!();
         if selected_mirrors.is_empty() {
-            println!("No mirrors selected so far.");
+            println!("No mirrors selected for inclusion on medium so far.");
         } else {
-            println!("Selected mirrors:");
+            println!("Mirrors selected for inclusion on medium:");
             for id in &selected_mirrors {
                 println!("\t- {id}");
             }
@@ -406,7 +412,7 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
         match action {
             Action::SelectMirror => {
                 if available_mirrors.is_empty() {
-                    println!("No unselected mirrors available.");
+                    println!("No (more) unselected mirrors available.");
                     continue;
                 }
 
@@ -425,7 +431,7 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
             }
             Action::DeselectMirror => {
                 if selected_mirrors.is_empty() {
-                    println!("No selected mirrors available.");
+                    println!("No mirrors selected (yet).");
                     continue;
                 }
 
