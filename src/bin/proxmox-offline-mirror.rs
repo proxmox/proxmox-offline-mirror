@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::path::Path;
 
 use anyhow::{bail, Error};
@@ -20,18 +21,84 @@ use proxmox_offline_mirror::{
 mod proxmox_offline_mirror_cmds;
 use proxmox_offline_mirror_cmds::*;
 
+enum Distro {
+    Debian,
+    Pbs,
+    Pmg,
+    Pve,
+    PveCeph,
+}
+
+impl Display for Distro {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Distro::Debian => write!(f, "debian"),
+            Distro::Pbs => write!(f, "pbs"),
+            Distro::Pmg => write!(f, "pmg"),
+            Distro::Pve => write!(f, "pve"),
+            Distro::PveCeph => write!(f, "ceph"),
+        }
+    }
+}
+
+enum Release {
+    Bullseye,
+    Buster,
+}
+
+impl Display for Release {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Release::Bullseye => write!(f, "bullseye"),
+            Release::Buster => write!(f, "buster"),
+        }
+    }
+}
+
+enum DebianVariant {
+    Main,
+    Security,
+    Updates,
+    Backports,
+    Debug,
+}
+
+impl Display for DebianVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DebianVariant::Main => write!(f, "main"),
+            DebianVariant::Security => write!(f, "security"),
+            DebianVariant::Updates => write!(f, "updates"),
+            DebianVariant::Backports => write!(f, "backports"),
+            DebianVariant::Debug => write!(f, "debug"),
+        }
+    }
+}
+
+#[derive(PartialEq)]
+enum ProxmoxVariant {
+    Enterprise,
+    NoSubscription,
+    Test,
+}
+
+impl Display for ProxmoxVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProxmoxVariant::Enterprise => write!(f, "enterprise"),
+            ProxmoxVariant::NoSubscription => write!(f, "no_subscription"),
+            ProxmoxVariant::Test => write!(f, "test"),
+        }
+    }
+}
+
 fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> {
     let mut use_subscription = None;
 
-    let (repository, key_path, architectures) = if read_bool_from_tty("Guided Setup", Some(true))? {
-        enum Distro {
-            Debian,
-            Pbs,
-            Pmg,
-            Pve,
-            PveCeph,
-        }
-
+    let (repository, key_path, architectures, suggested_id) = if read_bool_from_tty(
+        "Guided Setup",
+        Some(true),
+    )? {
         let distros = &[
             (Distro::Debian, "Debian"),
             (Distro::Pbs, "Proxmox Backup Server"),
@@ -41,24 +108,11 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         ];
         let dist = read_selection_from_tty("Select distro to mirror", distros, None)?;
 
-        enum Release {
-            Bullseye,
-            Buster,
-        }
-
         let releases = &[(Release::Bullseye, "Bullseye"), (Release::Buster, "Buster")];
         let release = read_selection_from_tty("Select release", releases, Some(0))?;
 
-        let (url, key_path) = match dist {
+        let (url, key_path, suggested_id) = match dist {
             Distro::Debian => {
-                enum DebianVariant {
-                    Main,
-                    Security,
-                    Updates,
-                    Backports,
-                    Debug,
-                }
-
                 let variants = &[
                     (DebianVariant::Main, "Main repository"),
                     (DebianVariant::Security, "Security"),
@@ -118,7 +172,9 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                     (Release::Buster, _) => "/usr/share/keyrings/debian-archive-buster-stable.gpg",
                 };
 
-                (url, key.to_string())
+                let suggested_id = format!("{dist}_{release}_{variant}");
+
+                (url, key.to_string(), Some(suggested_id))
             }
             Distro::PveCeph => {
                 enum CephRelease {
@@ -158,11 +214,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
                 };
 
-                let release = match release {
-                    Release::Bullseye => "bullseye",
-                    Release::Buster => "buster",
-                };
-
                 let ceph_release = match ceph_release {
                     CephRelease::Luminous => "luminous",
                     CephRelease::Nautilus => "nautilus",
@@ -173,17 +224,11 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                 let url = format!(
                     "http://download.proxmox.com/debian/ceph-{ceph_release} {release} {components}"
                 );
+                let suggested_id = format!("ceph_{ceph_release}_{release}");
 
-                (url, key.to_string())
+                (url, key.to_string(), Some(suggested_id))
             }
-            proxmox_product => {
-                #[derive(PartialEq)]
-                enum ProxmoxVariant {
-                    Enterprise,
-                    NoSubscription,
-                    Test,
-                }
-
+            product => {
                 let variants = &[
                     (ProxmoxVariant::Enterprise, "Enterprise repository"),
                     (ProxmoxVariant::NoSubscription, "No-Subscription repository"),
@@ -192,15 +237,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
 
                 let variant =
                     read_selection_from_tty("Select repository variant", variants, Some(0))?;
-
-                let product = match proxmox_product {
-                    Distro::Pbs => "pbs",
-                    Distro::Pmg => "pmg",
-                    Distro::Pve => "pve",
-                    _ => {
-                        bail!("Invalid");
-                    }
-                };
 
                 // TODO enterprise query for key!
                 let url = match (release, variant) {
@@ -212,7 +248,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                     (Release::Buster, ProxmoxVariant::Test) => format!("http://download.proxmox.com/debian/{product} buster {product}test"),
                 };
 
-                use_subscription = match (proxmox_product, variant) {
+                use_subscription = match (product, variant) {
                     (Distro::Pbs, &ProxmoxVariant::Enterprise) => Some(ProductType::Pbs),
                     (Distro::Pmg, &ProxmoxVariant::Enterprise) => Some(ProductType::Pmg),
                     (Distro::Pve, &ProxmoxVariant::Enterprise) => Some(ProductType::Pve),
@@ -224,12 +260,14 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
                 };
 
-                (url, key.to_string())
+                let suggested_id = format!("{product}_{release}_{variant}");
+
+                (url, key.to_string(), Some(suggested_id))
             }
         };
 
         let architectures = vec!["amd64".to_string(), "all".to_string()];
-        (format!("deb {url}"), key_path, architectures)
+        (format!("deb {url}"), key_path, architectures, suggested_id)
     } else {
         let repo = read_string_from_tty("Enter repository line in sources.list format", None)?;
         let key_path = read_string_from_tty("Enter path to repository key file", None)?;
@@ -258,7 +296,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         )?
         .clone();
 
-        (repo, key_path, architectures)
+        (repo, key_path, architectures, None)
     };
 
     if !Path::new(&key_path).exists() {
@@ -266,7 +304,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
     }
 
     let id = loop {
-        let mut id = read_string_from_tty("Enter mirror ID", None)?;
+        let mut id = read_string_from_tty("Enter mirror ID", suggested_id.as_deref())?;
         while let Err(err) = MIRROR_ID_SCHEMA.parse_simple_value(&id) {
             eprintln!("Not a valid mirror ID: {err}");
             id = read_string_from_tty("Enter mirror ID", None)?;
