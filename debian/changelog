@@ -1,0 +1,5 @@
+rust-proxmox-offline-mirror (0.1.0-1) stable; urgency=medium
+
+  * initial release
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 21 Jul 2022 14:49:12 +0200

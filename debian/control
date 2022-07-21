@@ -1,0 +1,120 @@
+Source: rust-proxmox-offline-mirror
+Section: rust
+Priority: optional
+Build-Depends: debhelper (>= 12),
+ dh-cargo (>= 25),
+ cargo:native,
+ rustc:native,
+ libstd-rust-dev,
+ librust-anyhow-1+default-dev,
+ librust-base64-0.13+default-dev,
+ librust-bzip2-0.4+default-dev,
+ librust-flate2-1+default-dev (>= 1.0.22-~~),
+ librust-hex-0.4+default-dev (>= 0.4.3-~~),
+ librust-hyper-0.14+default-dev,
+ librust-lazy-static-1+default-dev (>= 1.4-~~),
+ librust-nix-0.24+default-dev,
+ librust-openssl-0.10+default-dev,
+ librust-proxmox-apt-0.9+default-dev,
+ librust-proxmox-async-0.4+default-dev,
+ librust-proxmox-http-0.6+client-dev (>= 0.6.3-~~),
+ librust-proxmox-http-0.6+client-trait-dev (>= 0.6.3-~~),
+ librust-proxmox-http-0.6+default-dev (>= 0.6.3-~~),
+ librust-proxmox-http-0.6+proxmox-async-dev (>= 0.6.3-~~),
+ librust-proxmox-router-1+cli-dev (>= 1.1-~~),
+ librust-proxmox-router-1+default-dev (>= 1.1-~~),
+ librust-proxmox-schema-1+api-macro-dev (>= 1.1-~~),
+ librust-proxmox-schema-1+default-dev (>= 1.1-~~),
+ librust-proxmox-section-config-1+default-dev,
+ librust-proxmox-serde-0.1+default-dev,
+ librust-proxmox-subscription-0.2+api-types-dev,
+ librust-proxmox-subscription-0.2+default-dev,
+ librust-proxmox-sys-0.3+default-dev,
+ librust-proxmox-time-1+default-dev (>= 1.1.3-~~),
+ librust-regex-1+default-dev (>= 1.5.5-~~),
+ librust-sequoia-openpgp-1+default-dev (>= 1.7-~~),
+ librust-serde-1+default-dev,
+ librust-serde-1+derive-dev,
+ librust-serde-json-1+default-dev,
+ librust-ureq-2+default-dev (>= 2.4.0-~~),
+ librust-ureq-2+native-certs-dev (>= 2.4.0-~~),
+ librust-walkdir-2+default-dev (>= 2.3.1-~~),
+ librust-xz2-0.1+default-dev
+Maintainer: Proxmox Support Team <support@proxmox.com>
+Standards-Version: 4.5.1
+Vcs-Git: git://git.proxmox.com/git/proxmox-offline-mirror.git
+Vcs-Browser: https://git.proxmox.com/?p=proxmox-offline-mirror.git
+Rules-Requires-Root: no
+
+Package: librust-proxmox-offline-mirror-dev
+Architecture: any
+Multi-Arch: same
+Depends:
+ ${misc:Depends},
+ librust-anyhow-1+default-dev,
+ librust-base64-0.13+default-dev,
+ librust-bzip2-0.4+default-dev,
+ librust-flate2-1+default-dev (>= 1.0.22-~~),
+ librust-hex-0.4+default-dev (>= 0.4.3-~~),
+ librust-hyper-0.14+default-dev,
+ librust-lazy-static-1+default-dev (>= 1.4-~~),
+ librust-nix-0.24+default-dev,
+ librust-openssl-0.10+default-dev,
+ librust-proxmox-apt-0.9+default-dev,
+ librust-proxmox-async-0.4+default-dev,
+ librust-proxmox-http-0.6+client-dev (>= 0.6.3-~~),
+ librust-proxmox-http-0.6+client-trait-dev (>= 0.6.3-~~),
+ librust-proxmox-http-0.6+default-dev (>= 0.6.3-~~),
+ librust-proxmox-http-0.6+proxmox-async-dev (>= 0.6.3-~~),
+ librust-proxmox-router-1+cli-dev (>= 1.1-~~),
+ librust-proxmox-router-1+default-dev (>= 1.1-~~),
+ librust-proxmox-schema-1+api-macro-dev (>= 1.1-~~),
+ librust-proxmox-schema-1+default-dev (>= 1.1-~~),
+ librust-proxmox-section-config-1+default-dev,
+ librust-proxmox-serde-0.1+default-dev,
+ librust-proxmox-subscription-0.2+api-types-dev,
+ librust-proxmox-subscription-0.2+default-dev,
+ librust-proxmox-sys-0.3+default-dev,
+ librust-proxmox-time-1+default-dev (>= 1.1.3-~~),
+ librust-regex-1+default-dev (>= 1.5.5-~~),
+ librust-sequoia-openpgp-1+default-dev (>= 1.7-~~),
+ librust-serde-1+default-dev,
+ librust-serde-1+derive-dev,
+ librust-serde-json-1+default-dev,
+ librust-ureq-2+default-dev (>= 2.4.0-~~),
+ librust-ureq-2+native-certs-dev (>= 2.4.0-~~),
+ librust-walkdir-2+default-dev (>= 2.3.1-~~),
+ librust-xz2-0.1+default-dev
+Provides:
+ librust-proxmox-offline-mirror+default-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0+default-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.1-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.1+default-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.1.0-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.1.0+default-dev (= ${binary:Version})
+Description: Proxmox offline repository mirror and subscription key manager - Rust source code
+ This package contains the source for the Rust proxmox-offline-mirror crate,
+ packaged by debcargo for use with cargo and dh-cargo.
+
+Package: proxmox-offline-mirror
+Architecture: any
+Multi-Arch: allowed
+Section: FIXME-(packages."(name)".section)
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+ ${cargo:Depends}
+Recommends:
+ ${cargo:Recommends}
+Suggests:
+ ${cargo:Suggests}
+Provides:
+ ${cargo:Provides}
+Built-Using: ${cargo:Built-Using}
+XB-X-Cargo-Built-Using: ${cargo:X-Cargo-Built-Using}
+Description: Proxmox offline repository mirror and subscription key manager
+ This package contains the following binaries built from the Rust crate
+ "proxmox-offline-mirror":
+  - proxmox-apt-repo
+  - proxmox-offline-mirror
