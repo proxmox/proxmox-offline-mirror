@@ -26,7 +26,7 @@ ureq = { version = "2.4.0", features = ["native-certs"] }
 walkdir = "2.3.1"
 xz2 = "0.1"
 
-proxmox-apt = { path = "../proxmox-apt", version = "0.8.0" }
+proxmox-apt = { version = "0.9.0" }
 proxmox-async = "0.4"
 proxmox-http = { version = "0.6.3", features = [ "client", "client-trait", "proxmox-async" ]}
 proxmox-router = { version = "1.1", features = [ "cli" ] }
