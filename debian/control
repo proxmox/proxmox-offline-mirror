@@ -100,7 +100,7 @@ Description: Proxmox offline repository mirror and subscription key manager - Ru
 Package: proxmox-offline-mirror
 Architecture: any
 Multi-Arch: allowed
-Section: FIXME-(packages."(name)".section)
+Section: admin
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
@@ -116,5 +116,6 @@ XB-X-Cargo-Built-Using: ${cargo:X-Cargo-Built-Using}
 Description: Proxmox offline repository mirror and subscription key manager
  This package contains the following binaries built from the Rust crate
  "proxmox-offline-mirror":
+  - docgen
   - proxmox-apt-repo
   - proxmox-offline-mirror
