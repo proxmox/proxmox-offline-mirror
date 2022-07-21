@@ -1,0 +1,88 @@
+div.sphinxsidebar {
+    height: calc(100% - 20px);
+    overflow: auto;
+}
+
+h1.logo-name {
+    font-size: 24px;
+}
+
+div.body img {
+    width: 250px;
+}
+pre {
+    padding: 5px 10px;
+}
+
+div.topic {
+    background-color: #FAFAFA;
+}
+
+li a.current {
+    font-weight: bold;
+    border-bottom: 1px solid #000;
+}
+ul li.toctree-l1 {
+    margin-top: 0.5em;
+}
+ul li.toctree-l1 > a {
+    color: #000;
+}
+
+div.sphinxsidebar ul {
+    color: #444;
+}
+div.sphinxsidebar ul ul {
+    list-style: circle;
+}
+div.sphinxsidebar ul ul ul {
+    list-style: square;
+}
+
+div.sphinxsidebar ul a code {
+    font-weight: normal;
+}
+div.sphinxsidebar ul ul a {
+    border-bottom: 1px dotted #CCC;
+}
+
+div.sphinxsidebar form.search {
+    margin-bottom: 5px;
+}
+
+div.sphinxsidebar h3 {
+    width: 100%;
+}
+
+div.sphinxsidebar h1.logo-name {
+    display: none;
+}
+
+div.document, div.footer {
+    width: min(100%, 1320px);
+}
+
+@media screen and (max-width: 875px) {
+    div.sphinxsidebar p.logo {
+        display: initial;
+    }
+    div.sphinxsidebar h1.logo-name {
+        display: block;
+    }
+    div.sphinxsidebar span {
+        color: #EEE;
+    }
+    .sphinxsidebar ul li.toctree-l1 > a, div.sphinxsidebar a {
+        color: #FFF;
+    }
+    div.sphinxsidebar {
+        background-color: #555;
+    }
+    div.body {
+        min-width: 300px;
+    }
+    div.footer {
+        display: block;
+        margin: 15px auto 0px auto;
+    }
+}

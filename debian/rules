@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+export BUILD_MODE=release-deb
+%:
+	dh $@ --buildsystem cargo
+
+override_dh_auto_test:
+	# skip for now to avoid additional debug builds - no tests anyway
+	# dh_auto_test -- test --all
+
+override_dh_auto_install:
+	dh_auto_install
+	DESTDIR=../debian/proxmox-offline-mirror make -C docs install

@@ -176,7 +176,7 @@ impl SubscriptionKey {
 }
 
 lazy_static! {
-    static ref CONFIG: SectionConfig = init();
+    pub static ref CONFIG: SectionConfig = init();
 }
 
 fn init() -> SectionConfig {

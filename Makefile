@@ -1,9 +1,12 @@
 include /usr/share/dpkg/pkg-info.mk
 include /usr/share/dpkg/architecture.mk
+include defines.mk
 
 PACKAGE=proxmox-offline-mirror
 BUILDDIR ?= $(PACKAGE)-$(DEB_VERSION_UPSTREAM)
 BUILDDIR_TMP ?= $(BUILDDIR).tmp
+
+SUBDIRS := docs
 
 DEB=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
 LIB_DEB=librust-$(PACKAGE)-dev_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
@@ -22,6 +25,10 @@ all: cargo-build $(SUBDIRS)
 .PHONY: cargo-build
 cargo-build:
 	cargo build $(CARGO_BUILD_ARGS)
+
+.PHONY: $(SUBDIRS)
+$(SUBDIRS):
+	$(MAKE) -C $@
 
 .PHONY: build
 build:
