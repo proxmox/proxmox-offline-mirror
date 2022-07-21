@@ -45,7 +45,7 @@ async fn create_snapshot(config: Option<String>, id: String, _param: Value) -> R
             .iter()
             .find(|key| {
                 if let Ok(Some(info)) = key.info() {
-                    info.status == SubscriptionStatus::ACTIVE && key.product() == *product
+                    info.status == SubscriptionStatus::Active && key.product() == *product
                 } else {
                     false
                 }
