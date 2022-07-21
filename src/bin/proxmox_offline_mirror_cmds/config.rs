@@ -13,7 +13,7 @@ use proxmox_offline_mirror::{
     types::{MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA},
 };
 
-pub const DEFAULT_CONFIG_PATH: &str = "/etc/proxmox-apt-mirror.cfg";
+pub const DEFAULT_CONFIG_PATH: &str = "/etc/proxmox-offline-mirror.cfg";
 
 pub const LIST_MIRRORS_RETURN_TYPE: ReturnType = ReturnType {
     optional: false,

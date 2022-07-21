@@ -10,7 +10,7 @@ use crate::{config::SubscriptionKey, types::ProductType};
 
 const PRODUCT_URL: &str = "ADD URL FOR PROXMOX-APT-MIRROR";
 // TODO add version?
-const USER_AGENT: &str = "proxmox-apt-mirror";
+const USER_AGENT: &str = "proxmox-offline-mirror";
 
 fn simple_http() -> SimpleHttp {
     let options = SimpleHttpOptions {

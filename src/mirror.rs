@@ -55,7 +55,7 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
         let key = file_get_contents(Path::new(&self.key_path))?;
 
         let agent = ureq::builder()
-            .user_agent("proxmox-apt-mirror 0.1") // TODO actually read version ;)
+            .user_agent("proxmox-offline-mirror 0.1") // TODO actually read version ;)
             .build();
 
         Ok(ParsedMirrorConfig {

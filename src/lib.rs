@@ -1,6 +1,6 @@
 //! Proxmox mirroring tool for APT repositories.
 //!
-//! This library provides the underlying functionality of the `proxmox-apt-mirror` and
+//! This library provides the underlying functionality of the `proxmox-offline-mirror` and
 //! `proxmox-apt-repo` binaries.
 //!
 //! It implements the following features:
