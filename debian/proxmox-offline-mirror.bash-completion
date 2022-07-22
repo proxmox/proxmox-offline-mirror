@@ -1,0 +1,2 @@
+debian/proxmox-offline-mirror.bc proxmox-offline-mirror
+debian/proxmox-apt-repo.bc proxmox-apt-repo

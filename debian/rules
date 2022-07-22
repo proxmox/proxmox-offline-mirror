@@ -2,7 +2,7 @@
 
 export BUILD_MODE=release-deb
 %:
-	dh $@ --buildsystem cargo
+	dh $@ --buildsystem cargo --with=bash-completion
 
 override_dh_auto_test:
 	# skip for now to avoid additional debug builds - no tests anyway
