@@ -11,3 +11,7 @@ override_dh_auto_test:
 override_dh_auto_install:
 	dh_auto_install
 	DESTDIR=../debian/proxmox-offline-mirror make -C docs install
+	rm debian/proxmox-offline-mirror/usr/bin/docgen
+
+override_dh_missing:
+	dh_missing --fail-missing
