@@ -158,7 +158,7 @@ To activate or update an offline subscription key, either use ``proxmox-apt-repo
 .. _get_help:
 
 Getting Help
-------------
+============
 
 .. _get_help_enterprise_support:
 
