@@ -4,21 +4,34 @@ Introduction
 What is Proxmox Offline Mirror?
 -------------------------------
 
-This tool consists of two binaries, `proxmox-offline-mirror` (mirror tool to create
-and manage mirrors and media containing repositories) and `proxmox-apt-repo`
+This tool consists of two binaries, ``proxmox-offline-mirror`` (mirror tool to create
+and manage mirrors and media containing repositories) and ``proxmox-apt-repo``
 (helper to use media on offline systems).
 
-There are two basic entity types available for configuration:
-- mirrors, consisting of upstream repository metadata and a local path where snapshots are stored
--- configured with `proxmox-offline-mirror config mirror ...`
--- used with `proxmox-offline-mirror mirror ...`
-- media, consisting of local mirrors and a path where mirrors are synced to
--- configured with `proxmox-offline-mirror config medium ...`
--- used with `proxmox-offline-mirror medium ...`
+There are three basic entity types available for configuration:
 
-and one internal one, a `pool` consisting of
+- keys, either for the mirroring system itself, or for the offline systems
+
+  - configured with ``proxmox-offline-mirror key ...``
+
+- mirrors, consisting of upstream repository metadata and a local path where snapshots are stored
+
+  - configured with ``proxmox-offline-mirror config mirror ...``
+
+  - used with ``proxmox-offline-mirror mirror ...``
+
+- media, consisting of local mirrors and a path where mirrors are synced to
+
+  - configured with ``proxmox-offline-mirror config medium ...``
+
+  - used with ``proxmox-offline-mirror medium ...``
+
+Behind the scenes, one or more `pools` consisting of
+
 - a pool directory containing checksum files (e.g., `sha256/3dc7bc5f82cdcc4ea0f69dd30d5f6bb19e0ccc36f4a79c865eed0e7a370cd5e4`)
 - a base directory containing directories and hardlinks to checksum files inside the pool directory
+
+are used for space-efficient storing of repository contents ("snapshots").
 
 Adding a file consists of first adding the checksum file(s), then linking them
 under one or more paths. a garbage collect operation will iterate over all
@@ -26,32 +39,32 @@ files in the base directory and remove those which are not (or no longer) a
 hardlink to any checksum files, and remove any checksum files which have no
 hardlinks outside of the pool checksum file directories.
 
-A default config path of `/etc/proxmox-offline-mirror.cfg` is used, but is
+A default config path of ``/etc/proxmox-offline-mirror.cfg`` is used, but is
 overridable on a per command basis (for example, to allow operation as non-root
 user).
 
 Offline subscription keys
 =========================
 
-When using `proxmox-offline-mirror` with a corresponding Proxmox Offline Mirror subscription key,
+When using ``proxmox-offline-mirror`` with a corresponding Proxmox Offline Mirror subscription key,
 it is possible to update subscription information for air-gapped systems or those without access
 to the public internet.
  
-First, add the mirror key using `proxmox-offline-mirror key add-mirror-key`. This command will
+First, add the mirror key using ``proxmox-offline-mirror key add-mirror-key``. This command will
 activate the subscription of the mirroring system.
  
 Next, gather the server IDs of the systems that shall be set up for offline keys, and add them
-together with the system's subscription key using `proxmox-offline-mirror key add`. By default,
+together with the system's subscription key using ``proxmox-offline-mirror key add``. By default,
 this command will fetch updated subscription information from Proxmox licensing servers.
 
-You can refresh the subscription information for a single (`--key XX`) or all configured keys
-using `proxmox-offline-mirror key refresh`. The subscription information is transferred to a
+You can refresh the subscription information for a single (``--key XX``) or all configured keys
+using ``proxmox-offline-mirror key refresh``. The subscription information is transferred to a
 medium (see below) and can then be activated on the offline system with either
-`proxmox-apt-repo offline-key` or `proxmox-apt-repo setup`. This process must be repeated at least
+``proxmox-apt-repo offline-key`` or ``proxmox-apt-repo setup``. This process must be repeated at least
 once a year or before the nextduedate of the subscription key is reached, whichever comes first.
 
 .. note:: Configuring an active product subscription key (*as well as* a Proxmox Offline Mirror
-   subscription) is required for `proxmox-offline-mirror` to be able to access and mirror a
+   subscription) is required for ``proxmox-offline-mirror`` to be able to access and mirror a
    product's enterprise repository.
 
 Offline repository mirrors
@@ -60,27 +73,42 @@ Offline repository mirrors
 Setting up a mirror
 -------------------
 
-First either run the `setup` wizard (`proxmox-offline-mirror setup`), or the
-`config mirror add` command. For example, to add a mirror entry for the Debian
+First either run the ``setup`` wizard (``proxmox-offline-mirror setup``), or the
+``config mirror add`` command. For example, to add a mirror entry for the Debian
 Bullseye security repository, the following command can be used:
 
- proxmox-offline-mirror config mirror add \
-  --id debian-bullseye-security \
-  --architectures amd64 \
-  --architectures all \
-  --repository 'deb http://deb.debian.org/debian-security bullseye-security main contrib non-free' \
-  --key-path /etc/apt/trusted.gpg.d/debian-archive-bullseye-security-automatic.gpg \
-  --sync true \
-  --verify true \
-  --base-dir /path/to/mirror/dir/debian-bullseye-security \
-  --pool-dir /path/to/mirror/dir/debian-bullseye-security/.pool
+.. code-block:: console
+  
+  proxmox-offline-mirror config mirror add \
+   --id debian-bullseye-security \
+   --architectures amd64 \
+   --architectures all \
+   --repository 'deb http://deb.debian.org/debian-security bullseye-security main contrib non-free' \
+   --key-path /etc/apt/trusted.gpg.d/debian-archive-bullseye-security-automatic.gpg \
+   --sync true \
+   --verify true \
+   --base-dir /path/to/mirror/dir/debian-bullseye-security \
+   --pool-dir /path/to/mirror/dir/debian-bullseye-security/.pool
 
 Syncing a mirror
 ----------------
 
 To create the first (and subsequent) snapshots, the following command can be used:
 
- proxmox-offline-mirror mirror snapshot create --id debian-bullseye-security
+.. code-block:: console
+  
+  proxmox-offline-mirror mirror snapshot create --id debian-bullseye-security
+
+.. note:: Depending on the parameters used and the size of the original repository, creating a
+  snapshot can take both time and require significant disk space. This is especially true for the
+  initial snapshot, as subsequent ones will re-use unchanged package files and indices.
+
+Space management
+----------------
+
+After removing a snapshot with ``proxmox-offline-mirror mirror snapshot remove``, a
+``proxmox-offline-mirror mirror gc`` invocation is needed to actually remove any no longer needed
+contents from the underlying hard link pool.
 
 Offline media
 =============
@@ -88,35 +116,44 @@ Offline media
 Setting up a medium
 -------------------
 
-Either run the `setup` wizard again, or use the `config medium add` command.
+Either run the ``setup`` wizard again, or use the ``config medium add`` command.
 For example, to define a new medium containing the
 `proxmox-ve-bullseye-no-subscription` and `debian-bullseye` mirrors, run the
 following command:
 
- proxmox-offline-mirror config medium add \
-  --id pve-bullseye \
-  --mirrors proxmox-ve-bullseye-no-subscription \
-  --mirrors debian-bullseye \
-  --sync true \
-  --verify true \
-  --mountpoint /path/where/medium/is/mounted
+.. code-block:: console
+
+  proxmox-offline-mirror config medium add \
+   --id pve-bullseye \
+   --mirrors proxmox-ve-bullseye-no-subscription \
+   --mirrors debian-bullseye \
+   --sync true \
+   --verify true \
+   --mountpoint /path/where/medium/is/mounted
 
 Syncing a medium
 ----------------
 
 To sync the local mirrors to a medium, the following command can be used:
 
- proxmox-offline-mirror medium sync --id pve-bullseye
+.. code-block:: console
+  
+  proxmox-offline-mirror medium sync --id pve-bullseye
+
+This command will sync all mirrors linked with this medium to the medium's mountpoint, as well as
+sync all offline keys for further processing by ``proxmox-apt-repo`` on the target system.
 
 Using a medium
 --------------
 
 After syncing a medium, unmount it and make it accessible on the (offline)
 target system. You can now either manually point apt at the synced snapshots,
-or run `proxmox-apt-repo setup` to generate a sources.list.d snippet referecing
+or run ``proxmox-apt-repo setup`` to generate a sources.list.d snippet referecing
 selected mirrors and snapshots. Don't forget to remove the snippet again after
 the upgrade is done.
 
+To activate or update an offline subscription key, either use ``proxmox-apt-repo offline-key`` or
+``proxmox-apt-repo setup``.
 
 .. _get_help:
 
@@ -128,10 +165,11 @@ Getting Help
 Enterprise Support
 ~~~~~~~~~~~~~~~~~~
 
-Users with a `Proxmox Offline Mirror Basic, Standard or Premium Subscription Plan
+Users with a `Proxmox Offline Mirror` subscription
 <https://www.proxmox.com/en/proxmox-offline-mirror/pricing>`_ have access to the
-`Proxmox Customer Portal <https://my.proxmox.com>`_. The customer portal
-provides support with guaranteed response times from the Proxmox developers.
+`Proxmox Customer Portal <https://my.proxmox.com>`_ for offline mirroring/key handling related
+issues, provided the corresponding offline system has a valid subscription level higher than
+`Community`. The customer portal provides support with guaranteed response times from the Proxmox developers.
 For more information or for volume discounts, please contact office@proxmox.com.
 
 Community Support Forum
