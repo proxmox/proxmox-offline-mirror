@@ -323,7 +323,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
             "Enter (absolute) path where mirrored repository will be stored",
             Some("/var/lib/proxmox-offline-mirror/mirrors/{id}"),
         )?;
-        if !path.starts_with("/") {
+        if !path.starts_with('/') {
             eprintln!("Path must start with '/'");
         } else if Path::new(&path).exists() {
             eprintln!("Path already exists.");

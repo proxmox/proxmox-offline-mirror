@@ -201,7 +201,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
                             "Enter filename under '/etc/apt/sources.list.d/' (will be overwritten)",
                             Some("offline-mirror.list"),
                         )?;
-                        if file.contains("/") {
+                        if file.contains('/') {
                             eprintln!("Invalid file name.");
                         } else {
                             break file;
@@ -232,7 +232,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
                                 }
                             }
                         }
-                        return None;
+                        None
                     })
                     .collect();
 
@@ -322,7 +322,7 @@ async fn setup_offline_key(
                 return product == found_product;
             }
         }
-        return false;
+        false
     });
 
     match subscription {

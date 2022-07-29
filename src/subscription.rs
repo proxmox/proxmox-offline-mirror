@@ -17,7 +17,6 @@ fn simple_http() -> SimpleHttp {
         proxy_config: None,
         user_agent: Some(USER_AGENT.to_string()),
         tcp_keepalive: Some(30),
-        ..Default::default()
     };
 
     SimpleHttp::with_options(options)

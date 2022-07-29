@@ -143,11 +143,11 @@ pub struct SubscriptionKey {
     pub info: Option<String>,
 }
 
-impl Into<ServerBlob> for SubscriptionKey {
-    fn into(self) -> ServerBlob {
-        ServerBlob {
-            key: self.key,
-            serverid: self.server_id,
+impl From<SubscriptionKey> for ServerBlob {
+    fn from(key: SubscriptionKey) -> Self {
+        Self {
+            key: key.key,
+            serverid: key.server_id,
         }
     }
 }
