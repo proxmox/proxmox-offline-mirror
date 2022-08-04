@@ -1,6 +1,7 @@
 use anyhow::{bail, format_err, Error};
-use hyper::body::Buf;
-use proxmox_http::client::{SimpleHttp, SimpleHttpOptions};
+
+use proxmox_http::client::sync::Client;
+use proxmox_http::{HttpClient, HttpOptions};
 use proxmox_subscription::{
     sign::{SignRequest, SignedResponse},
     SubscriptionInfo,
@@ -12,14 +13,12 @@ const PRODUCT_URL: &str = "ADD URL FOR PROXMOX-APT-MIRROR";
 // TODO add version?
 const USER_AGENT: &str = "proxmox-offline-mirror";
 
-fn simple_http() -> SimpleHttp {
-    let options = SimpleHttpOptions {
-        proxy_config: None,
+fn client() -> Client {
+    let options = HttpOptions {
         user_agent: Some(USER_AGENT.to_string()),
-        tcp_keepalive: Some(30),
+        ..Default::default()
     };
-
-    SimpleHttp::with_options(options)
+    Client::new(options)
 }
 
 pub fn extract_mirror_key(keys: &[SubscriptionKey]) -> Result<SubscriptionKey, Error> {
@@ -44,7 +43,7 @@ pub async fn refresh(
         mirror_key.key.clone(),
         mirror_key.server_id.clone(),
         PRODUCT_URL.to_string(),
-        simple_http(),
+        client(),
     )?;
     offline_keys.retain(|k| k.product() != ProductType::Pom);
     if offline_keys.is_empty() {
@@ -56,7 +55,7 @@ pub async fn refresh(
             key.key.clone(),
             key.server_id.clone(),
             PRODUCT_URL.to_string(),
-            simple_http(),
+            client(),
         ) {
             errors = true;
             eprintln!("Failed to refresh subscription key {} - {}", key.key, err);
@@ -69,17 +68,15 @@ pub async fn refresh(
         mirror_key: mirror_key.into(),
         blobs: offline_keys.into_iter().map(|k| k.into()).collect(),
     };
-    let res = simple_http()
-        .post(
-            "https://shop.proxmox.com/proxmox-subscription/sign",
-            Some(serde_json::to_string(&request)?),
-            Some("text/json"),
-        )
-        .await?;
+    let res = client().post(
+        "https://shop.proxmox.com/proxmox-subscription/sign",
+        Some(serde_json::to_vec(&request)?.as_slice()),
+        Some("text/json"),
+        None,
+    )?;
     if res.status().is_success() {
-        let body = res.into_body();
-        let res: SignedResponse =
-            serde_json::from_reader(hyper::body::aggregate(body).await?.reader())?;
+        let body: Vec<u8> = res.into_body();
+        let res: SignedResponse = serde_json::from_slice(&body)?;
         res.verify(&public_key)
     } else {
         bail!("Refresh failed - {}", res.status());

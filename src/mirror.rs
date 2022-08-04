@@ -8,8 +8,8 @@ use std::{
 use anyhow::{bail, format_err, Error};
 use flate2::bufread::GzDecoder;
 use nix::libc;
+use proxmox_http::{client::sync::Client, HttpClient, HttpOptions};
 use proxmox_sys::fs::file_get_contents;
-use ureq::Agent;
 
 use crate::{
     config::{MirrorConfig, SubscriptionKey},
@@ -41,7 +41,7 @@ struct ParsedMirrorConfig {
     pub verify: bool,
     pub sync: bool,
     pub auth: Option<String>,
-    pub agent: Agent,
+    pub client: Client,
 }
 
 impl TryInto<ParsedMirrorConfig> for MirrorConfig {
@@ -54,9 +54,12 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
 
         let key = file_get_contents(Path::new(&self.key_path))?;
 
-        let agent = ureq::builder()
-            .user_agent("proxmox-offline-mirror 0.1") // TODO actually read version ;)
-            .build();
+        let options = HttpOptions {
+            user_agent: Some("proxmox-offline-mirror 0.1".to_string()),
+            ..Default::default()
+        }; // TODO actually read version ;)
+
+        let client = Client::new(options);
 
         Ok(ParsedMirrorConfig {
             repository,
@@ -66,7 +69,7 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
             verify: self.verify,
             sync: self.sync,
             auth: None,
-            agent,
+            client,
         })
     }
 }
@@ -96,7 +99,7 @@ fn get_repo_url(repo: &APTRepository, path: &str) -> String {
 ///
 /// Only fetches and returns data, doesn't store anything anywhere.
 fn fetch_repo_file(
-    agent: &Agent,
+    client: &Client,
     uri: &str,
     max_size: Option<u64>,
     checksums: Option<&CheckSums>,
@@ -104,26 +107,28 @@ fn fetch_repo_file(
 ) -> Result<FetchResult, Error> {
     println!("-> GET '{}'..", uri);
 
-    let request = if let Some(auth) = auth {
-        agent.get(uri).set("Authorization", auth)
+    let headers = if let Some(auth) = auth {
+        let mut map = HashMap::new();
+        map.insert("Authorization".to_string(), auth.to_string());
+        Some(map)
     } else {
-        agent.get(uri)
+        None
     };
 
-    let response = request.call()?.into_reader();
+    let response = client.get(uri, headers.as_ref())?;
 
+    let reader: Box<dyn Read> = response.into_body();
+    let mut reader = reader.take(max_size.unwrap_or(u64::MAX));
     let mut data = Vec::new();
-    let bytes = response
-        .take(max_size.unwrap_or(10_000_000))
-        .read_to_end(&mut data)?;
+    reader.read_to_end(&mut data)?;
 
     if let Some(checksums) = checksums {
         checksums.verify(&data)?;
     }
 
     Ok(FetchResult {
+        fetched: data.len(),
         data,
-        fetched: bytes,
     })
 }
 
@@ -138,14 +143,14 @@ fn fetch_release(
     let (name, fetched, sig) = if detached {
         println!("Fetching Release/Release.gpg files");
         let sig = fetch_repo_file(
-            &config.agent,
+            &config.client,
             &get_dist_url(&config.repository, "Release.gpg"),
             None,
             None,
             config.auth.as_deref(),
         )?;
         let mut fetched = fetch_repo_file(
-            &config.agent,
+            &config.client,
             &get_dist_url(&config.repository, "Release"),
             Some(32_000_000),
             None,
@@ -156,7 +161,7 @@ fn fetch_release(
     } else {
         println!("Fetching InRelease file");
         let fetched = fetch_repo_file(
-            &config.agent,
+            &config.client,
             &get_dist_url(&config.repository, "InRelease"),
             Some(32_000_000),
             None,
@@ -309,7 +314,7 @@ fn fetch_plain_file(
         }
     } else {
         let fetched = fetch_repo_file(
-            &config.agent,
+            &config.client,
             url,
             Some(5_000_000_000),
             Some(checksums),
