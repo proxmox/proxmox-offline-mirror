@@ -101,7 +101,7 @@ fn get_repo_url(repo: &APTRepository, path: &str) -> String {
 fn fetch_repo_file(
     client: &Client,
     uri: &str,
-    max_size: Option<u64>,
+    max_size: usize,
     checksums: Option<&CheckSums>,
     auth: Option<&str>,
 ) -> Result<FetchResult, Error> {
@@ -118,7 +118,7 @@ fn fetch_repo_file(
     let response = client.get(uri, headers.as_ref())?;
 
     let reader: Box<dyn Read> = response.into_body();
-    let mut reader = reader.take(max_size.unwrap_or(u64::MAX));
+    let mut reader = reader.take(max_size as u64);
     let mut data = Vec::new();
     reader.read_to_end(&mut data)?;
 
@@ -145,14 +145,14 @@ fn fetch_release(
         let sig = fetch_repo_file(
             &config.client,
             &get_dist_url(&config.repository, "Release.gpg"),
-            None,
+            1024 * 1024,
             None,
             config.auth.as_deref(),
         )?;
         let mut fetched = fetch_repo_file(
             &config.client,
             &get_dist_url(&config.repository, "Release"),
-            Some(32_000_000),
+            256 * 1024 * 1024,
             None,
             config.auth.as_deref(),
         )?;
@@ -163,7 +163,7 @@ fn fetch_release(
         let fetched = fetch_repo_file(
             &config.client,
             &get_dist_url(&config.repository, "InRelease"),
-            Some(32_000_000),
+            256 * 1024 * 1024,
             None,
             config.auth.as_deref(),
         )?;
@@ -248,7 +248,14 @@ fn fetch_index_file(
         return Ok(FetchResult { data, fetched: 0 });
     }
 
-    let res = fetch_plain_file(config, &url, &path, &reference.checksums, true)?;
+    let res = fetch_plain_file(
+        config,
+        &url,
+        &path,
+        reference.size,
+        &reference.checksums,
+        true,
+    )?;
 
     let mut buf = Vec::new();
     let raw = res.data_ref();
@@ -295,6 +302,7 @@ fn fetch_plain_file(
     config: &ParsedMirrorConfig,
     url: &str,
     file: &Path,
+    max_size: usize,
     checksums: &CheckSums,
     need_data: bool,
 ) -> Result<FetchResult, Error> {
@@ -316,7 +324,7 @@ fn fetch_plain_file(
         let fetched = fetch_repo_file(
             &config.client,
             url,
-            Some(5_000_000_000),
+            max_size,
             Some(checksums),
             config.auth.as_deref(),
         )?;
@@ -579,6 +587,7 @@ pub fn create_snapshot(
                 &config,
                 &get_repo_url(&config.repository, &package.file),
                 &full_path,
+                package.size,
                 &package.checksums,
                 false,
             )?;
