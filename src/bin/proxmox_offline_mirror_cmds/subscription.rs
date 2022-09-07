@@ -5,6 +5,8 @@ use proxmox_offline_mirror::{
     subscription::{extract_mirror_key, refresh},
     types::{ProductType, PROXMOX_SUBSCRIPTION_KEY_SCHEMA},
 };
+use proxmox_subscription::files::DEFAULT_SIGNING_KEY;
+use proxmox_sys::fs::file_get_contents;
 use serde_json::Value;
 
 use proxmox_router::cli::{
@@ -25,8 +27,7 @@ pub const LIST_KEYS_RETURN_TYPE: ReturnType = ReturnType {
 };
 
 fn public_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
-    // TODO read from file shipped by proxmox-offline-mirror? make configurable?
-    openssl::pkey::PKey::public_key_from_pem("-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEvmzKX6LBz6RXiYjzI4+TLKiLfTKy3h93\nbSn7wEo530zPDYgMTzZLIdXtBAECUmUEtNx5ctro/0ypvLpj7F/fe2gPZwvkNrRQ\nXBgvpyDCfcXgusv9eGhef3jIYKIIlXy8\n-----END PUBLIC KEY-----".as_bytes())
+    openssl::pkey::PKey::public_key_from_pem(&file_get_contents(DEFAULT_SIGNING_KEY)?)
         .map_err(Error::from)
 }
 

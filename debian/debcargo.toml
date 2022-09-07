@@ -14,4 +14,4 @@ repositories and subscription keys:
 - proxmox-offline-mirror (binary for the mirror host with internet access)
 - proxmox-apt-repo (binary for the Proxmox host without internet access)
 """
-depends = ["proxmox-offline-mirror-docs"]
+depends = ["proxmox-offline-mirror-docs", "proxmox-archive-keyring"]
