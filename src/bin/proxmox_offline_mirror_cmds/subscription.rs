@@ -121,7 +121,12 @@ async fn add_mirror_key(config: Option<String>, key: String, _param: Value) -> R
         proxmox_offline_mirror::subscription::refresh(data.clone(), vec![], public_key()?).await?;
 
     if let Some(info) = refreshed.pop() {
-        eprintln!("info: {info:?}");
+        eprintln!(
+            "Refreshed subscription info - status: {}, message: {}",
+            info.status,
+            info.message.as_ref().unwrap_or(&"-".to_string())
+        );
+
         if info.key.as_ref() == Some(&data.key) {
             data.info = Some(base64::encode(serde_json::to_vec(&info)?));
         } else {
@@ -291,9 +296,14 @@ pub async fn refresh_keys(config: Option<String>, key: Option<String>) -> Result
     };
 
     for info in refreshed {
-        eprintln!("info: {info:?}");
         match info.clone().key {
             Some(key) => {
+                eprintln!(
+                    "Refreshed subscription info - key: {}, status: {}, message: {}",
+                    &key,
+                    info.status,
+                    info.message.as_ref().unwrap_or(&"-".to_string())
+                );
                 let key = key.clone();
                 let mut data: SubscriptionKey = config.lookup("subscription", &key)?;
                 data.info = Some(base64::encode(serde_json::to_vec(&info)?));
