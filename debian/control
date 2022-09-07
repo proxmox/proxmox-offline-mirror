@@ -97,7 +97,8 @@ Depends:
  ${misc:Depends},
  ${shlibs:Depends},
  ${cargo:Depends},
- proxmox-offline-mirror-docs
+ proxmox-offline-mirror-docs,
+ proxmox-archive-keyring
 Recommends:
  ${cargo:Recommends}
 Suggests:
