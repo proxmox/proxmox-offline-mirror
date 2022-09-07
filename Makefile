@@ -11,6 +11,7 @@ SUBDIRS := docs
 DEB=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
 LIB_DEB=librust-$(PACKAGE)-dev_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
 DBG_DEB=$(PACKAGE)-dbgsym_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
+DOC_DEB=$(PACKAGE)-docs_$(DEB_VERSION_UPSTREAM_REVISION)_all.deb
 DSC=rust-$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION).dsc
 
 ifeq ($(BUILD_MODE), release)
@@ -41,7 +42,7 @@ build:
 	  --directory $(BUILDDIR_TMP) \
 	  $(PACKAGE) \
 	  $(shell dpkg-parsechangelog -l debian/changelog -SVersion | sed -e 's/-.*//')
-	cp $(BUILDDIR_TMP)/debian/control debian/control
+	cat $(BUILDDIR_TMP)/debian/control debian/control.docs > debian/control
 	rm -f $(BUILDDIR_TMP)/Cargo.lock
 	find $(BUILDDIR_TMP)/debian -name "*.hint" -delete
 	mv $(BUILDDIR_TMP) $(BUILDDIR)
@@ -64,7 +65,7 @@ dinstall: $(DEB)
 
 .PHONY: upload
 upload: $(DEB)
-	tar cf - $(DEB) $(DBG_DEB) | ssh -X repoman@repo.proxmox.com -- upload --product pve,pmg,pbs --dist bullseye --arch $(DEB_BUILD_ARCH)
+	tar cf - $(DEB) $(DBG_DEB) $(DOC_DEB) | ssh -X repoman@repo.proxmox.com -- upload --product pve,pmg,pbs --dist bullseye --arch $(DEB_BUILD_ARCH)
 
 .PHONY: distclean
 distclean: clean

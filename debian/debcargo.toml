@@ -8,3 +8,10 @@ vcs_browser = "https://git.proxmox.com/?p=proxmox-offline-mirror.git"
 
 [packages.bin]
 section = "admin"
+description = """
+This package contains the following binaries for managing Proxmox offline APT
+repositories and subscription keys:
+- proxmox-offline-mirror (binary for the mirror host with internet access)
+- proxmox-apt-repo (binary for the Proxmox host without internet access)
+"""
+depends = ["proxmox-offline-mirror-docs"]

@@ -96,7 +96,8 @@ Section: admin
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
- ${cargo:Depends}
+ ${cargo:Depends},
+ proxmox-offline-mirror-docs
 Recommends:
  ${cargo:Recommends}
 Suggests:
@@ -106,8 +107,13 @@ Provides:
 Built-Using: ${cargo:Built-Using}
 XB-X-Cargo-Built-Using: ${cargo:X-Cargo-Built-Using}
 Description: Proxmox offline repository mirror and subscription key manager
- This package contains the following binaries built from the Rust crate
- "proxmox-offline-mirror":
-  - docgen
-  - proxmox-apt-repo
-  - proxmox-offline-mirror
+ This package contains the following binaries for managing Proxmox offline APT
+ repositories and subscription keys:
+  - proxmox-offline-mirror (binary for the mirror host with internet access)
+  - proxmox-apt-repo (binary for the Proxmox host without internet access)
+
+Package: proxmox-offline-mirror-docs
+Architecture: all
+Section: admin
+Description: Proxmox offline repository mirror and subscription key manager
+ This package contains the documentation for proxmox-offline-mirror.
