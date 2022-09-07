@@ -403,25 +403,39 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
         DeselectMirror,
         Proceed,
     }
-    let actions = &[
-        (Action::SelectMirror, "Add mirror to selection."),
-        (Action::DeselectMirror, "Remove mirror from selection."),
-        (Action::Proceed, "Proceed"),
-    ];
 
     loop {
         println!();
-        if selected_mirrors.is_empty() {
+        let actions = if selected_mirrors.is_empty() {
             println!("No mirrors selected for inclusion on medium so far.");
+            vec![
+                (Action::SelectMirror, "Add mirror to selection."),
+                (Action::Proceed, "Proceed"),
+            ]
         } else {
             println!("Mirrors selected for inclusion on medium:");
             for id in &selected_mirrors {
                 println!("\t- {id}");
             }
-        }
+            println!();
+            if available_mirrors.is_empty() {
+                println!("No more mirrors available for selection!");
+                vec![
+                    (Action::DeselectMirror, "Remove mirror from selection."),
+                    (Action::Proceed, "Proceed"),
+                ]
+            } else {
+                vec![
+                    (Action::SelectMirror, "Add mirror to selection."),
+                    (Action::DeselectMirror, "Remove mirror from selection."),
+                    (Action::Proceed, "Proceed"),
+                ]
+            }
+        };
+
         println!();
 
-        let action = read_selection_from_tty("Select action", actions, Some(0))?;
+        let action = read_selection_from_tty("Select action", &actions, Some(0))?;
         println!();
 
         match action {
@@ -514,23 +528,34 @@ async fn setup(_param: Value) -> Result<(), Error> {
         Quit,
     }
 
-    let actions = &[
-        (Action::AddMirror, "Add new mirror entry"),
-        (Action::AddMedium, "Add new medium entry"),
-        (Action::Quit, "Quit"),
-    ];
-
     loop {
         println!();
+        let mut mirror_defined = false;
         if !config.sections.is_empty() {
             println!("Existing config entries:");
             for (section, (section_type, _)) in config.sections.iter() {
+                if section_type == "mirror" {
+                    mirror_defined = true;
+                }
                 println!("{section_type} '{section}'");
             }
             println!();
         }
 
-        match read_selection_from_tty("Select Action:", actions, Some(0))? {
+        let actions = if mirror_defined {
+            vec![
+                (Action::AddMirror, "Add new mirror entry"),
+                (Action::AddMedium, "Add new medium entry"),
+                (Action::Quit, "Quit"),
+            ]
+        } else {
+            vec![
+                (Action::AddMirror, "Add new mirror entry"),
+                (Action::Quit, "Quit"),
+            ]
+        };
+
+        match read_selection_from_tty("Select Action:", &actions, Some(0))? {
             Action::Quit => break,
             Action::AddMirror => {
                 let mirror_config = action_add_mirror(&config)?;
