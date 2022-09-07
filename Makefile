@@ -43,6 +43,7 @@ build:
 	  $(PACKAGE) \
 	  $(shell dpkg-parsechangelog -l debian/changelog -SVersion | sed -e 's/-.*//')
 	cat $(BUILDDIR_TMP)/debian/control debian/control.docs > debian/control
+	cp -a debian/control $(BUILDDIR_TMP)/debian/control
 	rm -f $(BUILDDIR_TMP)/Cargo.lock
 	find $(BUILDDIR_TMP)/debian -name "*.hint" -delete
 	mv $(BUILDDIR_TMP) $(BUILDDIR)
