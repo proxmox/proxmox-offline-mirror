@@ -351,6 +351,21 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
 }
 
 fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
+    let id = loop {
+        let mut id = read_string_from_tty("Enter medium ID", None)?;
+        while let Err(err) = MEDIA_ID_SCHEMA.parse_simple_value(&id) {
+            eprintln!("Not a valid medium ID: {err}");
+            id = read_string_from_tty("Enter medium ID", None)?;
+        }
+
+        if config.sections.contains_key(&id) {
+            eprintln!("Config entry '{id}' already exists!");
+            continue;
+        }
+
+        break id;
+    };
+
     let mountpoint = loop {
         let path = read_string_from_tty("Enter (absolute) path where medium is mounted", None)?;
         if !path.starts_with('/') {
@@ -460,21 +475,6 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
         Some(true),
     )?;
     let sync = read_bool_from_tty("Should newly written files be written using FSYNC to ensure crash-consistency? (io-intensive!)", Some(true))?;
-
-    let id = loop {
-        let mut id = read_string_from_tty("Enter medium ID", None)?;
-        while let Err(err) = MEDIA_ID_SCHEMA.parse_simple_value(&id) {
-            eprintln!("Not a valid medium ID: {err}");
-            id = read_string_from_tty("Enter medium ID", None)?;
-        }
-
-        if config.sections.contains_key(&id) {
-            eprintln!("Config entry '{id}' already exists!");
-            continue;
-        }
-
-        break id;
-    };
 
     Ok(MediaConfig {
         id,
