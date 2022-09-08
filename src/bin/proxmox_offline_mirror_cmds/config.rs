@@ -1,4 +1,6 @@
-use anyhow::Error;
+use std::{fs::remove_dir_all, path::Path};
+
+use anyhow::{bail, Error};
 use serde_json::Value;
 
 use proxmox_router::cli::{
@@ -396,7 +398,7 @@ async fn add_medium(
             },
             "remove-data": {
                 type: bool,
-                description: "Remove medium data as well.",
+                description: "Remove ALL DATA on medium as well.",
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -418,9 +420,13 @@ async fn remove_medium(
 
     let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
     match section_config.lookup::<MediaConfig>("medium", &id) {
-        Ok(_config) => {
+        Ok(medium) => {
             if remove_data {
-                todo!();
+                let medium_base = Path::new(&medium.mountpoint);
+                if !medium_base.exists() {
+                    bail!("Medium mountpoint doesn't exist.");
+                }
+                remove_dir_all(medium_base)?;
             }
 
             section_config.sections.remove(&id);
