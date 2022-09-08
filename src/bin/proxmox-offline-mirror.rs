@@ -92,6 +92,57 @@ impl Display for ProxmoxVariant {
     }
 }
 
+fn derive_debian_repo(release: &Release, variant: &DebianVariant, components: &str) -> (String, String, Option<String>) {
+    let url = match (release, variant) {
+        (Release::Bullseye, DebianVariant::Main) => {
+            "http://deb.debian.org/debian bullseye"
+        }
+        (Release::Bullseye, DebianVariant::Security) => {
+            "http://deb.debian.org/debian-security bullseye-security"
+        }
+        (Release::Bullseye, DebianVariant::Updates) => {
+            "http://deb.debian.org/debian bullseye-updates"
+        }
+        (Release::Bullseye, DebianVariant::Backports) => {
+            "http://deb.debian.org/debian bullseye-backports"
+        }
+        (Release::Bullseye, DebianVariant::Debug) => {
+            "http://deb.debian.org/debian-debug bullseye-debug"
+        }
+        (Release::Buster, DebianVariant::Main) => "http://deb.debian.org/debian buster",
+        (Release::Buster, DebianVariant::Security) => {
+            "http://deb.debian.org/debian-security buster/updates"
+        }
+        (Release::Buster, DebianVariant::Updates) => {
+            "http://deb.debian.org/debian buster-updates"
+        }
+        (Release::Buster, DebianVariant::Backports) => {
+            "http://deb.debian.org/debian buster-backports"
+        }
+        (Release::Buster, DebianVariant::Debug) => {
+            "http://deb.debian.org/debian-debug buster-debug"
+        }
+    };
+
+    let url = format!("{url} {components}");
+    let key = match (release, variant) {
+        (Release::Bullseye, DebianVariant::Security) => {
+            "/usr/share/keyrings/debian-archive-bullseye-security-automatic.gpg"
+        }
+        (Release::Bullseye, _) => {
+            "/usr/share/keyrings/debian-archive-bullseye-automatic.gpg"
+        }
+        (Release::Buster, DebianVariant::Security) => {
+            "/usr/share/keyrings/debian-archive-buster-security-automatic.gpg"
+        }
+        (Release::Buster, _) => "/usr/share/keyrings/debian-archive-buster-stable.gpg",
+    };
+
+    let suggested_id = format!("debian_{release}_{variant}");
+
+    (url, key.to_string(), Some(suggested_id))
+}
+
 fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> {
     let mut use_subscription = None;
 
@@ -128,54 +179,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                     Some("main contrib non-free"),
                 )?;
 
-                let url = match (release, variant) {
-                    (Release::Bullseye, DebianVariant::Main) => {
-                        "http://deb.debian.org/debian bullseye"
-                    }
-                    (Release::Bullseye, DebianVariant::Security) => {
-                        "http://deb.debian.org/debian-security bullseye-security"
-                    }
-                    (Release::Bullseye, DebianVariant::Updates) => {
-                        "http://deb.debian.org/debian bullseye-updates"
-                    }
-                    (Release::Bullseye, DebianVariant::Backports) => {
-                        "http://deb.debian.org/debian bullseye-backports"
-                    }
-                    (Release::Bullseye, DebianVariant::Debug) => {
-                        "http://deb.debian.org/debian-debug bullseye-debug"
-                    }
-                    (Release::Buster, DebianVariant::Main) => "http://deb.debian.org/debian buster",
-                    (Release::Buster, DebianVariant::Security) => {
-                        "http://deb.debian.org/debian-security buster/updates"
-                    }
-                    (Release::Buster, DebianVariant::Updates) => {
-                        "http://deb.debian.org/debian buster-updates"
-                    }
-                    (Release::Buster, DebianVariant::Backports) => {
-                        "http://deb.debian.org/debian buster-backports"
-                    }
-                    (Release::Buster, DebianVariant::Debug) => {
-                        "http://deb.debian.org/debian-debug buster-debug"
-                    }
-                };
-
-                let url = format!("{url} {components}");
-                let key = match (release, variant) {
-                    (Release::Bullseye, DebianVariant::Security) => {
-                        "/usr/share/keyrings/debian-archive-bullseye-security-automatic.gpg"
-                    }
-                    (Release::Bullseye, _) => {
-                        "/usr/share/keyrings/debian-archive-bullseye-automatic.gpg"
-                    }
-                    (Release::Buster, DebianVariant::Security) => {
-                        "/usr/share/keyrings/debian-archive-buster-security-automatic.gpg"
-                    }
-                    (Release::Buster, _) => "/usr/share/keyrings/debian-archive-buster-stable.gpg",
-                };
-
-                let suggested_id = format!("{dist}_{release}_{variant}");
-
-                (url, key.to_string(), Some(suggested_id))
+                derive_debian_repo(release, variant, &components)
             }
             Distro::PveCeph => {
                 enum CephRelease {
