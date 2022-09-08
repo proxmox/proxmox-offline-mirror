@@ -60,7 +60,8 @@ those which are not (or no longer) a hardlink to any checksum files, and remove 
 which have no hardlinks outside of the pool checksum file directories.
 
 A default config path of ``/etc/proxmox-offline-mirror.cfg`` is used, but is overridable on a per
-command basis (for example, to allow operation as non-root user).
+command basis (for example, to allow operation as non-root user) using either the ``--config`` CLI
+option or the ``PROXMOX_OFFLINE_MIRROR_CONFIG`` environment variable.
 
 
 .. _get_help:
