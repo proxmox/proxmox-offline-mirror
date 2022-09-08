@@ -4,27 +4,44 @@ Introduction
 What is Proxmox Offline Mirror?
 -------------------------------
 
-This tool consists of two binaries, ``proxmox-offline-mirror`` (mirror tool to create
-and manage mirrors and media containing repositories) and ``proxmox-apt-repo``
-(helper to use media on offline systems).
+With Proxmox Offline Mirror (POM) you can manage a local apt mirror for all Proxmox and Debian
+projects package updates. You can also export this mirror to a external medium to update systems
+that cannot connect to the repositories via HTTP, for example due to being completely air-gapped.
+Finally you can also manage subscription for such restricted hosts.
+
+This tool consists of two binaries:
+
+``proxmox-offline-mirror``
+  The mirror tool to create and manage mirrors and media containing repositories
+
+``proxmox-apt-repo``
+  The helper to use media and setup subscription key on offline Proxmox VE,
+  Proxmox Mail Gateway or Proxmox Backup Server systems
 
 There are three basic entity types available for configuration:
 
-- keys, either for the mirroring system itself, or for the offline systems
+*keys*
+  Subscription keys are either for the mirroring system itself, or for the offline systems.
 
-  - configured with ``proxmox-offline-mirror key ...``
+  They are configured with ``proxmox-offline-mirror key ...``
 
-- mirrors, consisting of upstream repository metadata and a local path where snapshots are stored
+*mirrors*
+  A mirror consists of an upstream repository metadata and a local path where snapshots are stored
 
   - configured with ``proxmox-offline-mirror config mirror ...``
 
   - used with ``proxmox-offline-mirror mirror ...``
 
-- media, consisting of local mirrors and a path where mirrors are synced to
+*media*
+  A medium consisting of local mirrors and a path where mirrors are synced to
 
   - configured with ``proxmox-offline-mirror config medium ...``
 
   - used with ``proxmox-offline-mirror medium ...``
+
+
+Technical Overview
+------------------
 
 Behind the scenes, one or more `pools` consisting of
 
@@ -33,26 +50,29 @@ Behind the scenes, one or more `pools` consisting of
 
 are used for space-efficient storing of repository contents ("snapshots").
 
-Adding a file consists of first adding the checksum file(s), then linking them
-under one or more paths. a garbage collect operation will iterate over all
-files in the base directory and remove those which are not (or no longer) a
-hardlink to any checksum files, and remove any checksum files which have no
-hardlinks outside of the pool checksum file directories.
+Adding a file consists of first adding the checksum file(s), then linking them under one or more
+paths. a garbage collect operation will iterate over all files in the base directory and remove
+those which are not (or no longer) a hardlink to any checksum files, and remove any checksum files
+which have no hardlinks outside of the pool checksum file directories.
 
-A default config path of ``/etc/proxmox-offline-mirror.cfg`` is used, but is
-overridable on a per command basis (for example, to allow operation as non-root
-user).
+A default config path of ``/etc/proxmox-offline-mirror.cfg`` is used, but is overridable on a per
+command basis (for example, to allow operation as non-root user).
 
 Offline Subscription Keys
 =========================
 
 When using ``proxmox-offline-mirror`` with a corresponding Proxmox Offline Mirror subscription key,
-it is possible to update subscription information for air-gapped systems or those without access
+it is possible to update subscription information for air-gapped systems, or those without access
 to the public internet.
- 
-First, add the mirror key using ``proxmox-offline-mirror key add-mirror-key``. This command will
-activate the subscription of the mirroring system.
- 
+
+First, add the `pom-<keyid>` mirror key using ``proxmox-offline-mirror key add-mirror-key <key>``.
+This command will activate the subscription of the mirroring system.
+
+.. note:: You can acquire a Promxox Offline Mirror Subscription key by contacting
+   <sales@proxmox.com>. If the majority of your Proxmox VE, Proxmox Backup Server or
+   Proxmox Mail Gateway hosts got standard or premium subscriptions you may be elligible for free
+   offline mirroring subscription, in that case also write a mail to <sales@proxmox.com> for details.
+
 Next, gather the server IDs of the systems that shall be set up for offline keys, and add them
 together with the system's subscription key using ``proxmox-offline-mirror key add``. By default,
 this command will fetch updated subscription information from Proxmox licensing servers.
@@ -89,6 +109,10 @@ Bullseye security repository, the following command can be used:
    --verify true \
    --base-dir /path/to/mirror/dir/debian-bullseye-security \
    --pool-dir /path/to/mirror/dir/debian-bullseye-security/.pool
+
+.. note:: The `all` architecture is meant for architecture independent packages, not for all
+   possible architectures, and is normally always sensible to add in addition to the host specific
+   architecture.
 
 Syncing a Mirror
 ----------------
@@ -165,11 +189,11 @@ Getting Help
 Enterprise Support
 ------------------
 
-Users with a `Proxmox Offline Mirror` subscription
-<https://www.proxmox.com/en/proxmox-offline-mirror/pricing>`_ have access to the
-`Proxmox Customer Portal <https://my.proxmox.com>`_ for offline mirroring/key handling related
-issues, provided the corresponding offline system has a valid subscription level higher than
-`Community`. The customer portal provides support with guaranteed response times from the Proxmox developers.
+Users with a `Proxmox Offline Mirror` subscription have access to the `Proxmox Customer Portal
+<https://my.proxmox.com>`_ for offline mirroring/key handling related issues, provided the
+corresponding offline system has a valid subscription level higher than `Community`. The customer
+portal provides support with guaranteed response times from the Proxmox developers.
+
 For more information or for volume discounts, please contact office@proxmox.com.
 
 Community Support Forum
@@ -183,8 +207,9 @@ a large forum is a great place to get information.
 Mailing Lists
 -------------
 
-Proxmox Offline Mirror is fully open-source and contributions are welcome! Here
-is the primary communication channel for developers:
+Proxmox Offline Mirror is fully open-source and contributions are welcome! The Proxmox VE
+development mailing list acts also as the primary communication channel for offline mirror
+developers:
 
 :Mailing list for developers: `PVE Development List`_
 
@@ -203,7 +228,7 @@ License
 
 This software is written by Proxmox Server Solutions GmbH <support@proxmox.com>
 
-Proxmox Backup Server is free and open source software: you can use it,
+Proxmox Offline Mirror is free and open source software: you can use it,
 redistribute it, and/or modify it under the terms of the GNU Affero General
 Public License as published by the Free Software Foundation, either version 3
 of the License, or (at your option) any later version.
