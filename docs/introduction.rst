@@ -43,7 +43,7 @@ A default config path of ``/etc/proxmox-offline-mirror.cfg`` is used, but is
 overridable on a per command basis (for example, to allow operation as non-root
 user).
 
-Offline subscription keys
+Offline Subscription Keys
 =========================
 
 When using ``proxmox-offline-mirror`` with a corresponding Proxmox Offline Mirror subscription key,
@@ -67,10 +67,10 @@ once a year or before the nextduedate of the subscription key is reached, whiche
    subscription) is required for ``proxmox-offline-mirror`` to be able to access and mirror a
    product's enterprise repository.
 
-Offline repository mirrors
+Offline Repository Mirrors
 ==========================
 
-Setting up a mirror
+Setting Up a Mirror
 -------------------
 
 First either run the ``setup`` wizard (``proxmox-offline-mirror setup``), or the
@@ -90,7 +90,7 @@ Bullseye security repository, the following command can be used:
    --base-dir /path/to/mirror/dir/debian-bullseye-security \
    --pool-dir /path/to/mirror/dir/debian-bullseye-security/.pool
 
-Syncing a mirror
+Syncing a Mirror
 ----------------
 
 To create the first (and subsequent) snapshots, the following command can be used:
@@ -103,17 +103,17 @@ To create the first (and subsequent) snapshots, the following command can be use
   snapshot can take both time and require significant disk space. This is especially true for the
   initial snapshot, as subsequent ones will re-use unchanged package files and indices.
 
-Space management
+Space Management
 ----------------
 
 After removing a snapshot with ``proxmox-offline-mirror mirror snapshot remove``, a
 ``proxmox-offline-mirror mirror gc`` invocation is needed to actually remove any no longer needed
 contents from the underlying hard link pool.
 
-Offline media
+Offline Media
 =============
 
-Setting up a medium
+Setting Up a Medium
 -------------------
 
 Either run the ``setup`` wizard again, or use the ``config medium add`` command.
@@ -131,7 +131,7 @@ following command:
    --verify true \
    --mountpoint /path/where/medium/is/mounted
 
-Syncing a medium
+Syncing a Medium
 ----------------
 
 To sync the local mirrors to a medium, the following command can be used:
@@ -143,7 +143,7 @@ To sync the local mirrors to a medium, the following command can be used:
 This command will sync all mirrors linked with this medium to the medium's mountpoint, as well as
 sync all offline keys for further processing by ``proxmox-apt-repo`` on the target system.
 
-Using a medium
+Using a Medium
 --------------
 
 After syncing a medium, unmount it and make it accessible on the (offline)
@@ -163,7 +163,7 @@ Getting Help
 .. _get_help_enterprise_support:
 
 Enterprise Support
-~~~~~~~~~~~~~~~~~~
+------------------
 
 Users with a `Proxmox Offline Mirror` subscription
 <https://www.proxmox.com/en/proxmox-offline-mirror/pricing>`_ have access to the
@@ -173,7 +173,7 @@ issues, provided the corresponding offline system has a valid subscription level
 For more information or for volume discounts, please contact office@proxmox.com.
 
 Community Support Forum
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 We always encourage our users to discuss and share their knowledge using the
 `Proxmox Community Forum`_. The forum is moderated by the Proxmox support team.
@@ -181,7 +181,7 @@ The large user base is spread out all over the world. Needless to say that such
 a large forum is a great place to get information.
 
 Mailing Lists
-~~~~~~~~~~~~~
+-------------
 
 Proxmox Offline Mirror is fully open-source and contributions are welcome! Here
 is the primary communication channel for developers:
@@ -189,7 +189,7 @@ is the primary communication channel for developers:
 :Mailing list for developers: `PVE Development List`_
 
 Bug Tracker
-~~~~~~~~~~~
+-----------
 
 Proxmox runs a public bug tracker at `<https://bugzilla.proxmox.com>`_. If an
 issue appears, file your report there. An issue can be a bug, as well as a
@@ -197,7 +197,7 @@ request for a new feature or enhancement. The bug tracker helps to keep track
 of the issue and will send a notification once it has been solved.
 
 License
--------
+=======
 
 |pom-copyright|
 
