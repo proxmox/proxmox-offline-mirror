@@ -323,6 +323,8 @@ latex_engine = 'xelatex'
 latex_elements = {
     'fontenc': '\\usepackage{fontspec}',
 
+    'extraclassoptions': 'openany,oneside',
+
      # The paper size ('letterpaper' or 'a4paper').
      #
      'papersize': 'a4paper',
