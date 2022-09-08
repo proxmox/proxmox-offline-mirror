@@ -15,7 +15,7 @@ use proxmox_offline_mirror::{
     types::{Snapshot, MIRROR_ID_SCHEMA},
 };
 
-use super::DEFAULT_CONFIG_PATH;
+use super::get_config_path;
 
 #[api(
     input: {
@@ -33,7 +33,7 @@ use super::DEFAULT_CONFIG_PATH;
  )]
 /// Create a new repository snapshot, fetching required/missing files from original repository.
 async fn create_snapshot(config: Option<String>, id: String, _param: Value) -> Result<(), Error> {
-    let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config = config.unwrap_or_else(|| get_config_path());
 
     let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MirrorConfig = section_config.lookup("mirror", &id)?;
@@ -87,7 +87,7 @@ async fn create_snapshot(config: Option<String>, id: String, _param: Value) -> R
 /// List existing repository snapshots.
 async fn list_snapshots(config: Option<String>, id: String, param: Value) -> Result<(), Error> {
     let output_format = get_output_format(&param);
-    let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config = config.unwrap_or_else(|| get_config_path());
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;
@@ -135,7 +135,7 @@ async fn remove_snapshot(
     snapshot: Snapshot,
     _param: Value,
 ) -> Result<(), Error> {
-    let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config = config.unwrap_or_else(|| get_config_path());
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;
@@ -164,7 +164,7 @@ async fn remove_snapshot(
  )]
 /// Run Garbage Collection on pool
 async fn garbage_collect(config: Option<String>, id: String, _param: Value) -> Result<(), Error> {
-    let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config = config.unwrap_or_else(|| get_config_path());
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MirrorConfig = config.lookup("mirror", &id)?;

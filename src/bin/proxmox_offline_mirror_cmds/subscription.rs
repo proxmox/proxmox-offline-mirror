@@ -19,7 +19,7 @@ use proxmox_router::cli::{
 };
 use proxmox_schema::{api, param_bail, ApiType, ArraySchema, ReturnType};
 
-use super::DEFAULT_CONFIG_PATH;
+use super::get_config_path;
 
 #[api]
 #[derive(Default, Serialize)]
@@ -148,7 +148,7 @@ fn public_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
  )]
 /// List subscription keys and their status
 async fn list_keys(config: Option<String>, param: Value) -> Result<(), Error> {
-    let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config = config.unwrap_or_else(|| get_config_path());
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: Vec<SubscriptionKey> = config.convert_to_typed_array("subscription")?;
@@ -204,7 +204,7 @@ async fn list_keys(config: Option<String>, param: Value) -> Result<(), Error> {
  )]
 /// Add offline mirror key
 async fn add_mirror_key(config: Option<String>, key: String, _param: Value) -> Result<(), Error> {
-    let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config = config.unwrap_or_else(|| get_config_path());
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config)?;
 
@@ -283,7 +283,7 @@ async fn add_key(
     refresh: bool,
     _param: Value,
 ) -> Result<(), Error> {
-    let config = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config = config.unwrap_or_else(|| get_config_path());
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config)?;
 
@@ -350,7 +350,7 @@ async fn add_key(
 )]
 /// Show (decoded) subscription config entry.
 pub fn show_key(config: Option<String>, key: String, param: Value) -> Result<(), Error> {
-    let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config_file = config.unwrap_or_else(|| get_config_path());
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
 
@@ -393,7 +393,7 @@ pub fn update_key(
     config: Option<String>,
     key: String,
 ) -> Result<(), Error> {
-    let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config_file = config.unwrap_or_else(|| get_config_path());
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
@@ -431,7 +431,7 @@ pub fn update_key(
 )]
 /// Refresh subscription key status.
 pub async fn refresh_keys(config: Option<String>, key: Option<String>) -> Result<(), Error> {
-    let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config_file = config.unwrap_or_else(|| get_config_path());
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
@@ -513,7 +513,7 @@ pub async fn refresh_keys(config: Option<String>, key: Option<String>) -> Result
  )]
 /// Remove subscription key config entry.
 async fn remove_key(config: Option<String>, key: String, _param: Value) -> Result<Value, Error> {
-    let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+    let config_file = config.unwrap_or_else(|| get_config_path());
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
