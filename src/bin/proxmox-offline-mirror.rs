@@ -409,10 +409,10 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
 fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
     let id = loop {
-        let mut id = read_string_from_tty("Enter medium ID", None)?;
-        while let Err(err) = MEDIA_ID_SCHEMA.parse_simple_value(&id) {
+        let id = read_string_from_tty("Enter medium ID", None)?;
+        if let Err(err) = MEDIA_ID_SCHEMA.parse_simple_value(&id) {
             eprintln!("Not a valid medium ID: {err}");
-            id = read_string_from_tty("Enter medium ID", None)?;
+            continue;
         }
 
         if config.sections.contains_key(&id) {
