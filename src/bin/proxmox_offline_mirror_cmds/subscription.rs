@@ -121,6 +121,11 @@ pub const LIST_KEYS_RETURN_TYPE: ReturnType = ReturnType {
     .schema(),
 };
 
+pub const SHOW_KEY_RETURN_TYPE: ReturnType = ReturnType {
+    schema: &DecodedSubscriptionKey::API_SCHEMA,
+    optional: true,
+};
+
 fn public_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
     openssl::pkey::PKey::public_key_from_pem(&file_get_contents(DEFAULT_SIGNING_KEY)?)
         .map_err(Error::from)
@@ -339,6 +344,45 @@ async fn add_key(
             key: {
                 schema: PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
             },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Show (decoded) subscription config entry.
+pub fn show_key(config: Option<String>, key: String, param: Value) -> Result<(), Error> {
+    let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
+
+    let data: SubscriptionKey = config.lookup("subscription", &key)?;
+    let decoded: DecodedSubscriptionKey = data.try_into()?;
+
+    let output_format = get_output_format(&param);
+
+    format_and_print_result_full(
+        &mut serde_json::json!(decoded),
+        &SHOW_KEY_RETURN_TYPE,
+        &output_format,
+        &default_table_format_options(),
+    );
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            config: {
+                type: String,
+                optional: true,
+                description: "Path to mirroring config file.",
+            },
+            key: {
+                schema: PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
+            },
             update: {
                 type: SubscriptionKeyUpdater,
                 flatten: true,
@@ -479,6 +523,10 @@ pub fn key_commands() -> CommandLineInterface {
         .insert(
             "add-mirror-key",
             CliCommand::new(&API_METHOD_ADD_MIRROR_KEY).arg_param(&["key"]),
+        )
+        .insert(
+            "show",
+            CliCommand::new(&API_METHOD_SHOW_KEY).arg_param(&["key"]),
         )
         .insert(
             "update",
