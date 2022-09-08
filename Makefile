@@ -62,7 +62,7 @@ $(DSC): build
 
 .PHONY: dinstall
 dinstall: $(DEB)
-	dpkg -i $(DEB) $(DBG_DEB) $(LIB_DEB)
+	dpkg -i $(DEB) $(DBG_DEB) $(DOC_DEB)
 
 .PHONY: upload
 upload: $(DEB)
