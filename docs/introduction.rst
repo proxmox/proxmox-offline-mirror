@@ -18,6 +18,9 @@ This tool consists of two binaries:
   The helper to use media and setup subscription key on offline Proxmox VE,
   Proxmox Mail Gateway or Proxmox Backup Server systems
 
+Terminology
+-----------
+
 There are three basic entity types available for configuration:
 
 *keys*
@@ -26,7 +29,8 @@ There are three basic entity types available for configuration:
   They are configured with ``proxmox-offline-mirror key ...``
 
 *mirrors*
-  A mirror consists of an upstream repository metadata and a local path where snapshots are stored
+  A mirror consists of an upstream repository metadata and a local path where **snapshots** of the
+  upstream repository are stored.
 
   - configured with ``proxmox-offline-mirror config mirror ...``
 
