@@ -100,11 +100,12 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         Some(true),
     )? {
         let distros = &[
-            (Distro::Debian, "Debian"),
+            (Distro::Pve, "Proxmox VE"),
             (Distro::Pbs, "Proxmox Backup Server"),
             (Distro::Pmg, "Proxmox Mail Gateway"),
-            (Distro::Pve, "Proxmox VE"),
-            (Distro::PveCeph, "Proxmox VE Ceph"),
+            (Distro::PveCeph, "Proxmox Ceph"),
+            (Distro::Debian, "Debian"),
+
         ];
         let dist = read_selection_from_tty("Select distro to mirror", distros, None)?;
 
