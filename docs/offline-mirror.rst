@@ -18,8 +18,7 @@ Bullseye security repository, the following command can be used:
    --key-path /etc/apt/trusted.gpg.d/debian-archive-bullseye-security-automatic.gpg \
    --sync true \
    --verify true \
-   --base-dir /path/to/mirror/dir/debian-bullseye-security \
-   --pool-dir /path/to/mirror/dir/debian-bullseye-security/.pool
+   --dir /path/to/mirror/dir/debian-bullseye-security
 
 .. note:: The `all` architecture is meant for architecture independent packages, not for all
    possible architectures, and is normally always sensible to add in addition to the host specific
