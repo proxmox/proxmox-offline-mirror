@@ -38,11 +38,11 @@ If you do not have any Proxmox project's repository set up, see :ref:`package_re
 Debian Package Repositories
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-All Debian based systems use APT_ as a package management tool. The lists of repositories are
+All Debian based systems use APT as a package management tool. The lists of repositories are
 defined in ``/etc/apt/sources.list`` and the ``.list`` files found in the ``/etc/apt/sources.d/``
 directory. Updates can be installed directly with the ``apt`` command line tool, or via the GUI.
 
-APT_ ``sources.list`` files list one package repository per line, with the most preferred source
+APT ``sources.list`` files list one package repository per line, with the most preferred source
 listed first. Empty lines are ignored and a ``#`` character anywhere on a line marks the remainder
 of that line as a comment. The information available from the configured sources is acquired by
 ``apt update``.
