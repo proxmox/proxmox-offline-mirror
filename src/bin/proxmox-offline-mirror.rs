@@ -92,11 +92,13 @@ impl Display for ProxmoxVariant {
     }
 }
 
-fn derive_debian_repo(release: &Release, variant: &DebianVariant, components: &str) -> (String, String, Option<String>) {
+fn derive_debian_repo(
+    release: &Release,
+    variant: &DebianVariant,
+    components: &str,
+) -> (String, String, String) {
     let url = match (release, variant) {
-        (Release::Bullseye, DebianVariant::Main) => {
-            "http://deb.debian.org/debian bullseye"
-        }
+        (Release::Bullseye, DebianVariant::Main) => "http://deb.debian.org/debian bullseye",
         (Release::Bullseye, DebianVariant::Security) => {
             "http://deb.debian.org/debian-security bullseye-security"
         }
@@ -113,9 +115,7 @@ fn derive_debian_repo(release: &Release, variant: &DebianVariant, components: &s
         (Release::Buster, DebianVariant::Security) => {
             "http://deb.debian.org/debian-security buster/updates"
         }
-        (Release::Buster, DebianVariant::Updates) => {
-            "http://deb.debian.org/debian buster-updates"
-        }
+        (Release::Buster, DebianVariant::Updates) => "http://deb.debian.org/debian buster-updates",
         (Release::Buster, DebianVariant::Backports) => {
             "http://deb.debian.org/debian buster-backports"
         }
@@ -129,9 +129,7 @@ fn derive_debian_repo(release: &Release, variant: &DebianVariant, components: &s
         (Release::Bullseye, DebianVariant::Security) => {
             "/usr/share/keyrings/debian-archive-bullseye-security-automatic.gpg"
         }
-        (Release::Bullseye, _) => {
-            "/usr/share/keyrings/debian-archive-bullseye-automatic.gpg"
-        }
+        (Release::Bullseye, _) => "/usr/share/keyrings/debian-archive-bullseye-automatic.gpg",
         (Release::Buster, DebianVariant::Security) => {
             "/usr/share/keyrings/debian-archive-buster-security-automatic.gpg"
         }
@@ -140,11 +138,12 @@ fn derive_debian_repo(release: &Release, variant: &DebianVariant, components: &s
 
     let suggested_id = format!("debian_{release}_{variant}");
 
-    (url, key.to_string(), Some(suggested_id))
+    (url, key.to_string(), suggested_id)
 }
 
-fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> {
+fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Error> {
     let mut use_subscription = None;
+    let mut extra_repos = Vec::new();
 
     let (repository, key_path, architectures, suggested_id) = if read_bool_from_tty(
         "Guided Setup",
@@ -156,12 +155,13 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
             (Distro::Pmg, "Proxmox Mail Gateway"),
             (Distro::PveCeph, "Proxmox Ceph"),
             (Distro::Debian, "Debian"),
-
         ];
         let dist = read_selection_from_tty("Select distro to mirror", distros, None)?;
 
         let releases = &[(Release::Bullseye, "Bullseye"), (Release::Buster, "Buster")];
         let release = read_selection_from_tty("Select release", releases, Some(0))?;
+
+        let mut add_debian_repo = false;
 
         let (url, key_path, suggested_id) = match dist {
             Distro::Debian => {
@@ -231,7 +231,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
                 );
                 let suggested_id = format!("ceph_{ceph_release}_{release}");
 
-                (url, key.to_string(), Some(suggested_id))
+                (url, key.to_string(), suggested_id)
             }
             product => {
                 let variants = &[
@@ -267,12 +267,40 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
 
                 let suggested_id = format!("{product}_{release}_{variant}");
 
-                (url, key.to_string(), Some(suggested_id))
+                add_debian_repo = read_bool_from_tty(
+                    "Should missing Debian mirrors for the selected product be auto-added",
+                    Some(true),
+                )?;
+
+                (url, key.to_string(), suggested_id)
             }
         };
 
         let architectures = vec!["amd64".to_string(), "all".to_string()];
-        (format!("deb {url}"), key_path, architectures, suggested_id)
+
+        if add_debian_repo {
+            extra_repos.push(derive_debian_repo(
+                release,
+                &DebianVariant::Main,
+                "main contrib",
+            ));
+            extra_repos.push(derive_debian_repo(
+                release,
+                &DebianVariant::Updates,
+                "main contrib",
+            ));
+            extra_repos.push(derive_debian_repo(
+                release,
+                &DebianVariant::Security,
+                "main contrib",
+            ));
+        }
+        (
+            format!("deb {url}"),
+            key_path,
+            architectures,
+            Some(suggested_id),
+        )
     } else {
         let repo = read_string_from_tty("Enter repository line in sources.list format", None)?;
         let key_path = read_string_from_tty("Enter (absolute) path to repository key file", None)?;
@@ -323,16 +351,24 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         break id;
     };
 
-    let dir = loop {
-        let path = read_string_from_tty(
-            "Enter (absolute) path where mirrored repository will be stored",
-            Some("/var/lib/proxmox-offline-mirror/mirrors/{id}"),
-        )?;
+    let check_path = |path: &str| {
         if !path.starts_with('/') {
             eprintln!("Path must start with '/'");
         } else if Path::new(&path).exists() {
             eprintln!("Path already exists.");
         } else {
+            return true;
+        }
+
+        false
+    };
+
+    let dir = loop {
+        let path = read_string_from_tty(
+            "Enter (absolute) path where mirrored repository will be stored",
+            Some("/var/lib/proxmox-offline-mirror/mirrors/{id}"),
+        )?;
+        if check_path(&path) {
             break path;
         }
     };
@@ -343,7 +379,35 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
     )?;
     let sync = read_bool_from_tty("Should newly written files be written using FSYNC to ensure crash-consistency? (io-intensive!)", Some(true))?;
 
-    Ok(MirrorConfig {
+    let mut configs = Vec::with_capacity(extra_repos.len() + 1);
+
+    for (url, key_path, suggested_id) in extra_repos {
+        if config.sections.contains_key(&suggested_id) {
+            eprintln!("config section '{suggested_id}' already exists, skipping..");
+        } else {
+            let repository = format!("deb {url}");
+            let extra_dir = if let Some((base, _id)) = dir.rsplit_once('/') {
+                format!("{base}/{suggested_id}")
+            } else {
+                eprintln!(
+                    "Cannot determine base dir for aut-added Debian repository '{suggested_id}'"
+                );
+                continue;
+            };
+            configs.push(MirrorConfig {
+                id: suggested_id,
+                repository,
+                architectures: architectures.clone(),
+                key_path,
+                verify,
+                sync,
+                dir: extra_dir,
+                use_subscription: None,
+            });
+        }
+    }
+
+    let main_config = MirrorConfig {
         id,
         repository,
         architectures,
@@ -352,7 +416,10 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<MirrorConfig, Error> 
         sync,
         dir,
         use_subscription,
-    })
+    };
+
+    configs.push(main_config);
+    Ok(configs)
 }
 
 fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
@@ -563,13 +630,14 @@ async fn setup(_param: Value) -> Result<(), Error> {
         match read_selection_from_tty("Select Action:", &actions, Some(0))? {
             Action::Quit => break,
             Action::AddMirror => {
-                let mirror_config = action_add_mirror(&config)?;
-                let id = mirror_config.id.clone();
-                mirror::init(&mirror_config)?;
-                config.set_data(&id, "mirror", mirror_config)?;
-                save_config(&config_file, &config)?;
-                println!("Config entry '{id}' added");
-                println!("Run \"proxmox-offline-mirror mirror snapshot create --config '{config_file}' --id '{id}'\" to create a new mirror snapshot.");
+                for mirror_config in action_add_mirror(&config)? {
+                    let id = mirror_config.id.clone();
+                    mirror::init(&mirror_config)?;
+                    config.set_data(&id, "mirror", mirror_config)?;
+                    save_config(&config_file, &config)?;
+                    println!("Config entry '{id}' added");
+                    println!("Run \"proxmox-offline-mirror mirror snapshot create --config '{config_file}' --id '{id}'\" to create a new mirror snapshot.");
+                }
             }
             Action::AddMedium => {
                 let media_config = action_add_medium(&config)?;
