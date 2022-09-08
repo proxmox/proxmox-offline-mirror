@@ -66,7 +66,7 @@ dinstall: $(DEB)
 
 .PHONY: upload
 upload: $(DEB)
-	tar cf - $(DEB) $(DBG_DEB) $(DOC_DEB) | ssh -X repoman@repo.proxmox.com -- upload --product pve,pmg,pbs --dist bullseye --arch $(DEB_BUILD_ARCH)
+	tar cf - $(DEB) $(DBG_DEB) $(DOC_DEB) | ssh -X repoman@repo.proxmox.com -- upload --product pve,pmg,pbs,pbs-client --dist bullseye --arch $(DEB_BUILD_ARCH)
 
 .PHONY: distclean
 distclean: clean
