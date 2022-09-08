@@ -1,13 +1,17 @@
 use anyhow::{bail, format_err, Error};
 
+use serde::Serialize;
+use serde_json::Value;
+use std::convert::TryFrom;
+
 use proxmox_offline_mirror::{
     config::{SubscriptionKey, SubscriptionKeyUpdater},
     subscription::{extract_mirror_key, refresh},
     types::{ProductType, PROXMOX_SUBSCRIPTION_KEY_SCHEMA},
 };
-use proxmox_subscription::files::DEFAULT_SIGNING_KEY;
+use proxmox_subscription::{files::DEFAULT_SIGNING_KEY, SubscriptionStatus};
 use proxmox_sys::fs::file_get_contents;
-use serde_json::Value;
+use proxmox_time::epoch_to_rfc3339_utc;
 
 use proxmox_router::cli::{
     default_table_format_options, format_and_print_result_full, get_output_format, CliCommand,
@@ -17,11 +21,102 @@ use proxmox_schema::{api, param_bail, ApiType, ArraySchema, ReturnType};
 
 use super::DEFAULT_CONFIG_PATH;
 
+#[api]
+#[derive(Default, Serialize)]
+#[serde(rename_all = "kebab-case")]
+/// `[SubscriptionKey]` with contained in info cross-checked and decoded.
+struct DecodedSubscriptionKey {
+    /// Subscription key
+    pub key: String,
+    /// Server ID for this subscription key
+    pub server_id: String,
+    /// Description, e.g. which system this key is deployed on
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Last Subscription Key state
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<SubscriptionStatus>,
+    /// timestamp of the last check done
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checktime: Option<String>,
+    /// a more human readable status message
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// human readable productname of the set subscription
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub productname: Option<String>,
+    /// register date of the set subscription
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regdate: Option<String>,
+    /// next due date of the set subscription
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nextduedate: Option<String>,
+    /// Signature status
+    pub signed: bool,
+}
+
+impl TryFrom<SubscriptionKey> for DecodedSubscriptionKey {
+    type Error = Error;
+
+    fn try_from(value: SubscriptionKey) -> Result<Self, Self::Error> {
+        let info = value.info()?;
+
+        if let Some(mut info) = info {
+            if let Some(key) = info.key.as_ref() {
+                if key != &value.key {
+                    bail!(
+                        "key '{}' doesn't match subscription info key '{}'",
+                        value.key,
+                        key
+                    )
+                }
+            }
+            if let Some(serverid) = info.serverid.as_ref() {
+                if serverid != &value.server_id {
+                    bail!(
+                        "server ID '{}' doesn't match subscription info key '{}'",
+                        value.server_id,
+                        serverid
+                    )
+                }
+            }
+
+            let signed = info.is_signed();
+            if signed {
+                info.check_signature(&[DEFAULT_SIGNING_KEY]);
+            }
+
+            let checktime = info.checktime.map(epoch_to_rfc3339_utc).transpose()?;
+
+            Ok(DecodedSubscriptionKey {
+                key: value.key,
+                server_id: value.server_id,
+                description: value.description,
+                status: Some(info.status),
+                checktime,
+                message: info.message,
+                regdate: info.regdate,
+                nextduedate: info.nextduedate,
+                productname: info.productname,
+                signed,
+            })
+        } else {
+            Ok(DecodedSubscriptionKey {
+                key: value.key,
+                server_id: value.server_id,
+                description: value.description,
+                signed: false,
+                ..Default::default()
+            })
+        }
+    }
+}
+
 pub const LIST_KEYS_RETURN_TYPE: ReturnType = ReturnType {
     optional: false,
     schema: &ArraySchema::new(
         "Returns the list of subscription keys.",
-        &SubscriptionKey::API_SCHEMA,
+        &DecodedSubscriptionKey::API_SCHEMA,
     )
     .schema(),
 };
@@ -52,16 +147,34 @@ async fn list_keys(config: Option<String>, param: Value) -> Result<(), Error> {
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: Vec<SubscriptionKey> = config.convert_to_typed_array("subscription")?;
-
-    // TODO adapt return schema here to add status, message and nextduedate?
-
+    let decoded: Vec<DecodedSubscriptionKey> =
+        config.into_iter().fold(Vec::new(), |mut values, key| {
+            match key.clone().try_into() {
+                Ok(decoded) => values.push(decoded),
+                Err(err) => {
+                    values.push(DecodedSubscriptionKey {
+                        key: key.key,
+                        server_id: key.server_id,
+                        description: key.description,
+                        message: Some(format!("Failed to decode info - {err}")),
+                        ..Default::default()
+                    });
+                }
+            };
+            values
+        });
     let output_format = get_output_format(&param);
     let options = default_table_format_options()
         .column(ColumnConfig::new("key").header("Subscription Key"))
         .column(ColumnConfig::new("server-id").header("Server ID"))
-        .column(ColumnConfig::new("description"));
+        .column(ColumnConfig::new("description"))
+        .column(ColumnConfig::new("status").header("Status"))
+        .column(ColumnConfig::new("message").header("Message"))
+        .column(ColumnConfig::new("checktime").header("Last Check"))
+        .column(ColumnConfig::new("nextduedate").header("Next Due"))
+        .column(ColumnConfig::new("signed").header("Signed"));
     format_and_print_result_full(
-        &mut serde_json::json!(config),
+        &mut serde_json::json!(decoded),
         &LIST_KEYS_RETURN_TYPE,
         &output_format,
         &options,
