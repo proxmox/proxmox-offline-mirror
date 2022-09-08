@@ -58,136 +58,16 @@ which have no hardlinks outside of the pool checksum file directories.
 A default config path of ``/etc/proxmox-offline-mirror.cfg`` is used, but is overridable on a per
 command basis (for example, to allow operation as non-root user).
 
-Offline Subscription Keys
-=========================
-
-When using ``proxmox-offline-mirror`` with a corresponding Proxmox Offline Mirror subscription key,
-it is possible to update subscription information for air-gapped systems, or those without access
-to the public internet.
-
-First, add the `pom-<keyid>` mirror key using ``proxmox-offline-mirror key add-mirror-key <key>``.
-This command will activate the subscription of the mirroring system.
-
-.. note:: You can acquire a Promxox Offline Mirror Subscription key by contacting
-   <sales@proxmox.com>. If the majority of your Proxmox VE, Proxmox Backup Server or
-   Proxmox Mail Gateway hosts got standard or premium subscriptions you may be elligible for free
-   offline mirroring subscription, in that case also write a mail to <sales@proxmox.com> for details.
-
-Next, gather the server IDs of the systems that shall be set up for offline keys, and add them
-together with the system's subscription key using ``proxmox-offline-mirror key add``. By default,
-this command will fetch updated subscription information from Proxmox licensing servers.
-
-You can refresh the subscription information for a single (``--key XX``) or all configured keys
-using ``proxmox-offline-mirror key refresh``. The subscription information is transferred to a
-medium (see below) and can then be activated on the offline system with either
-``proxmox-apt-repo offline-key`` or ``proxmox-apt-repo setup``. This process must be repeated at least
-once a year or before the nextduedate of the subscription key is reached, whichever comes first.
-
-.. note:: Configuring an active product subscription key (*as well as* a Proxmox Offline Mirror
-   subscription) is required for ``proxmox-offline-mirror`` to be able to access and mirror a
-   product's enterprise repository.
-
-Offline Repository Mirrors
-==========================
-
-Setting Up a Mirror
--------------------
-
-First either run the ``setup`` wizard (``proxmox-offline-mirror setup``), or the
-``config mirror add`` command. For example, to add a mirror entry for the Debian
-Bullseye security repository, the following command can be used:
-
-.. code-block:: console
-  
-  proxmox-offline-mirror config mirror add \
-   --id debian-bullseye-security \
-   --architectures amd64 \
-   --architectures all \
-   --repository 'deb http://deb.debian.org/debian-security bullseye-security main contrib non-free' \
-   --key-path /etc/apt/trusted.gpg.d/debian-archive-bullseye-security-automatic.gpg \
-   --sync true \
-   --verify true \
-   --base-dir /path/to/mirror/dir/debian-bullseye-security \
-   --pool-dir /path/to/mirror/dir/debian-bullseye-security/.pool
-
-.. note:: The `all` architecture is meant for architecture independent packages, not for all
-   possible architectures, and is normally always sensible to add in addition to the host specific
-   architecture.
-
-Syncing a Mirror
-----------------
-
-To create the first (and subsequent) snapshots, the following command can be used:
-
-.. code-block:: console
-  
-  proxmox-offline-mirror mirror snapshot create --id debian-bullseye-security
-
-.. note:: Depending on the parameters used and the size of the original repository, creating a
-  snapshot can take both time and require significant disk space. This is especially true for the
-  initial snapshot, as subsequent ones will re-use unchanged package files and indices.
-
-Space Management
-----------------
-
-After removing a snapshot with ``proxmox-offline-mirror mirror snapshot remove``, a
-``proxmox-offline-mirror mirror gc`` invocation is needed to actually remove any no longer needed
-contents from the underlying hard link pool.
-
-Offline Media
-=============
-
-Setting Up a Medium
--------------------
-
-Either run the ``setup`` wizard again, or use the ``config medium add`` command.
-For example, to define a new medium containing the
-`proxmox-ve-bullseye-no-subscription` and `debian-bullseye` mirrors, run the
-following command:
-
-.. code-block:: console
-
-  proxmox-offline-mirror config medium add \
-   --id pve-bullseye \
-   --mirrors proxmox-ve-bullseye-no-subscription \
-   --mirrors debian-bullseye \
-   --sync true \
-   --verify true \
-   --mountpoint /path/where/medium/is/mounted
-
-Syncing a Medium
-----------------
-
-To sync the local mirrors to a medium, the following command can be used:
-
-.. code-block:: console
-  
-  proxmox-offline-mirror medium sync --id pve-bullseye
-
-This command will sync all mirrors linked with this medium to the medium's mountpoint, as well as
-sync all offline keys for further processing by ``proxmox-apt-repo`` on the target system.
-
-Using a Medium
---------------
-
-After syncing a medium, unmount it and make it accessible on the (offline)
-target system. You can now either manually point apt at the synced snapshots,
-or run ``proxmox-apt-repo setup`` to generate a sources.list.d snippet referecing
-selected mirrors and snapshots. Don't forget to remove the snippet again after
-the upgrade is done.
-
-To activate or update an offline subscription key, either use ``proxmox-apt-repo offline-key`` or
-``proxmox-apt-repo setup``.
 
 .. _get_help:
 
 Getting Help
-============
+------------
 
 .. _get_help_enterprise_support:
 
 Enterprise Support
-------------------
+^^^^^^^^^^^^^^^^^^
 
 Users with a `Proxmox Offline Mirror` subscription have access to the `Proxmox Customer Portal
 <https://my.proxmox.com>`_ for offline mirroring/key handling related issues, provided the
@@ -197,7 +77,7 @@ portal provides support with guaranteed response times from the Proxmox develope
 For more information or for volume discounts, please contact office@proxmox.com.
 
 Community Support Forum
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
 We always encourage our users to discuss and share their knowledge using the
 `Proxmox Community Forum`_. The forum is moderated by the Proxmox support team.
@@ -205,7 +85,7 @@ The large user base is spread out all over the world. Needless to say that such
 a large forum is a great place to get information.
 
 Mailing Lists
--------------
+^^^^^^^^^^^^^
 
 Proxmox Offline Mirror is fully open-source and contributions are welcome! The Proxmox VE
 development mailing list acts also as the primary communication channel for offline mirror
@@ -214,7 +94,7 @@ developers:
 :Mailing list for developers: `PVE Development List`_
 
 Bug Tracker
------------
+^^^^^^^^^^^
 
 Proxmox runs a public bug tracker at `<https://bugzilla.proxmox.com>`_. If an
 issue appears, file your report there. An issue can be a bug, as well as a
@@ -222,7 +102,7 @@ request for a new feature or enhancement. The bug tracker helps to keep track
 of the issue and will send a notification once it has been solved.
 
 License
-=======
+-------
 
 |pom-copyright|
 
