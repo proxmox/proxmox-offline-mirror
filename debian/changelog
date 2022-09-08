@@ -1,3 +1,29 @@
+rust-proxmox-offline-mirror (0.2.0-1) stable; urgency=medium
+
+  * split out docs package
+
+  * update proxmox dependencies to reduces indirect, transitive dependencies
+
+  * keys: improve output on add/refresh
+
+  * wizard: ask for new medium ID up front
+
+  * docs pdf: avoid extra blank page on section/chapter boundary
+
+  * docs: restructure and split in different chapter files
+
+  * docs: add installation chapter
+
+  * medium: implement `remove .. --remove-data`
+
+  * wizard: optionally auto-add Debian mirrors
+
+  * wizard: query base path for location
+
+  * docs: ship config manpage as proxmox-offline-mirror.cfg.5
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 08 Sep 2022 13:46:05 +0200
+
 rust-proxmox-offline-mirror (0.1.0-1) stable; urgency=medium
 
   * initial release
