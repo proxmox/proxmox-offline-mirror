@@ -19,6 +19,8 @@ following command:
    --verify true \
    --mountpoint /path/where/medium/is/mounted
 
+.. _sync_medium:
+
 Syncing a Medium
 ----------------
 
