@@ -10,8 +10,14 @@ Setting Up a Mirror
 -------------------
 
 First either run the ``setup`` wizard (``proxmox-offline-mirror setup``), or the
-``config mirror add`` command. For example, to add a mirror entry for the Debian
-Bullseye security repository, the following command can be used:
+``config mirror add`` command.
+
+.. tip:: The quickest way to setup all relevant repositories for a Proxmox project is to use the
+   ``setup`` wizard, choose the product when adding a mirror and confirm the quesiton about
+   auto-adding the Debian base repos.
+
+For example, to manually add a mirror entry for the Debian Bullseye security repository, the
+following command can be used:
 
 .. code-block:: console
   
