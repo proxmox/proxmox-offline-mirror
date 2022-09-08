@@ -21,6 +21,7 @@ in the section entitled "GNU Free Documentation License".
    :caption: Table of Contents
 
    introduction.rst
+   installation.rst
    offline-keys.rst
    offline-mirror.rst
    offline-media.rst
