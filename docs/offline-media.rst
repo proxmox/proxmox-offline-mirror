@@ -1,6 +1,10 @@
 Offline Media
 =============
 
+A Medium is a file system location on which mirrors and subscription info will be saved at.
+This can be an external, portable disk (for example, USB pen drive) or a local network filesystem
+export.
+
 Setting Up a Medium
 -------------------
 

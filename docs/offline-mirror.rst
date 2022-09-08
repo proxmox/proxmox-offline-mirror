@@ -1,6 +1,11 @@
 Offline Repository Mirrors
 ==========================
 
+Offline repository mirrors are pointing to APT repos, for example, those from Proxmox VE, Proxmox
+Backup Server or Debian. After initial setup you can mirror all of the available packages locally,
+organised by creating point in time snapshots of the repositories. Those snapshots can then be
+exported to configured media.
+
 Setting Up a Mirror
 -------------------
 
