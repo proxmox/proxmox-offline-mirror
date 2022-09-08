@@ -409,7 +409,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
 fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
     let id = loop {
-        let id = read_string_from_tty("Enter medium ID", None)?;
+        let id = read_string_from_tty("Enter new medium ID", None)?;
         if let Err(err) = MEDIA_ID_SCHEMA.parse_simple_value(&id) {
             eprintln!("Not a valid medium ID: {err}");
             continue;
