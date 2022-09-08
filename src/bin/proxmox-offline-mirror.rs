@@ -647,7 +647,7 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
                     config.set_data(&id, "mirror", mirror_config)?;
                     save_config(&config_file, &config)?;
                     println!("Config entry '{id}' added");
-                    println!("Run \"proxmox-offline-mirror mirror snapshot create --config '{config_file}' --id '{id}'\" to create a new mirror snapshot.");
+                    println!("Run \"proxmox-offline-mirror mirror snapshot create --config '{config_file}' '{id}'\" to create a new mirror snapshot.");
                 }
             }
             Action::AddMedium => {
@@ -656,7 +656,7 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
                 config.set_data(&id, "medium", media_config)?;
                 save_config(&config_file, &config)?;
                 println!("Config entry '{id}' added");
-                println!("Run \"proxmox-offline-mirror medium sync --config '{config_file}' --id '{id}'\" to sync mirror snapshots to medium.");
+                println!("Run \"proxmox-offline-mirror medium sync --config '{config_file}' '{id}'\" to sync mirror snapshots to medium.");
             }
         }
     }

@@ -42,7 +42,7 @@ To create the first (and subsequent) snapshots, the following command can be use
 
 .. code-block:: console
   
-  proxmox-offline-mirror mirror snapshot create --id debian-bullseye-security
+  proxmox-offline-mirror mirror snapshot create debian-bullseye-security
 
 .. note:: Depending on the parameters used and the size of the original repository, creating a
   snapshot can take both time and require significant disk space. This is especially true for the
