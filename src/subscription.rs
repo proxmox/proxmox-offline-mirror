@@ -11,7 +11,7 @@ use proxmox_subscription::{
 use crate::{config::SubscriptionKey, types::ProductType};
 
 // TODO: Update with final, public URL
-const PRODUCT_URL: &str = "ADD URL FOR PROXMOX-APT-MIRROR";
+const PRODUCT_URL: &str = "-";
 // TODO add version?
 const USER_AGENT: &str = "proxmox-offline-mirror";
 
