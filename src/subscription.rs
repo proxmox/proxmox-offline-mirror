@@ -2,6 +2,7 @@ use anyhow::{bail, format_err, Error};
 
 use proxmox_http::client::sync::Client;
 use proxmox_http::{HttpClient, HttpOptions};
+use proxmox_subscription::SubscriptionStatus;
 use proxmox_subscription::{
     sign::{SignRequest, SignedResponse},
     SubscriptionInfo,
@@ -9,6 +10,7 @@ use proxmox_subscription::{
 
 use crate::{config::SubscriptionKey, types::ProductType};
 
+// TODO: Update with final, public URL
 const PRODUCT_URL: &str = "ADD URL FOR PROXMOX-APT-MIRROR";
 // TODO add version?
 const USER_AGENT: &str = "proxmox-offline-mirror";
@@ -23,15 +25,26 @@ fn client() -> Client {
 
 pub fn extract_mirror_key(keys: &[SubscriptionKey]) -> Result<SubscriptionKey, Error> {
     keys.iter()
-        .find(|k| k.product() == ProductType::Pom)
-        .ok_or_else(|| format_err!("No mirror subscription key configured!"))
+        .find(|k| {
+            if k.product() != ProductType::Pom {
+                return false;
+            }
+            if let Ok(Some(info)) = k.info() {
+                info.status == SubscriptionStatus::Active
+            } else {
+                false
+            }
+        })
+        .ok_or_else(|| format_err!("No active mirror subscription key configured!"))
         .cloned()
 }
 
 /// Refresh `offline_keys` using `mirror_key`.
 ///
-/// This consists of two phases:
-/// 1.
+/// This consists of three phases:
+/// 1. refresh the mirror key (if it expires/gets outdated step 3 would fail)
+/// 2. refresh all the offline keys (so that the info downloaded in step 3 is current)
+/// 3. get updated signed blobs for all offline keys (for transfer to offline systems)
 pub async fn refresh(
     mirror_key: SubscriptionKey,
     mut offline_keys: Vec<SubscriptionKey>,
