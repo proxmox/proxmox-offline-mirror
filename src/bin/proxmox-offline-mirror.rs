@@ -574,16 +574,22 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
 #[api(
     input: {
         properties: {
+            config: {
+                type: String,
+                optional: true,
+                description: "Path to mirroring config file.",
+            },
         },
     },
 )]
 /// Interactive setup wizard.
-async fn setup(_param: Value) -> Result<(), Error> {
+async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
     if !tty::stdin_isatty() {
         bail!("Setup wizard can only run interactively.");
     }
 
-    let config_file = read_string_from_tty("Mirror config file", Some(DEFAULT_CONFIG_PATH))?;
+    let config_file = config.unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
+
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
     let (mut config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
