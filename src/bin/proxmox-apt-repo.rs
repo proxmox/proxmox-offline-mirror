@@ -40,7 +40,12 @@ fn set_subscription_key(
             cmd.arg(data);
             cmd
         }
-        ProductType::Pmg => todo!(),
+        ProductType::Pmg => {
+            let mut cmd = Command::new("pmgsubscription");
+            cmd.arg("set-offline-key");
+            cmd.arg(data);
+            cmd
+        }
         ProductType::Pom => unreachable!(),
     };
 
