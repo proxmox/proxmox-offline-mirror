@@ -463,9 +463,7 @@ pub async fn refresh_keys(config: Option<String>, key: Option<String>) -> Result
 
     let refreshed = if let Some(key) = key {
         match keys.iter().find(|k| k.key == key) {
-            Some(key) => {
-                refresh_offline_keys(mirror_key, vec![key.to_owned()], public_key()?)?
-            }
+            Some(key) => refresh_offline_keys(mirror_key, vec![key.to_owned()], public_key()?)?,
             None => bail!("Subscription key '{key}' not configured."),
         }
     } else {
