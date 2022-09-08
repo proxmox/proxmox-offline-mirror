@@ -351,27 +351,18 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         break id;
     };
 
-    let check_path = |path: &str| {
+    let base_dir = loop {
+        let path = read_string_from_tty(
+            "Enter (absolute) base path where mirrored repositories will be stored",
+            Some("/var/lib/proxmox-offline-mirror/mirrors/"),
+        )?;
         if !path.starts_with('/') {
             eprintln!("Path must start with '/'");
-        } else if Path::new(&path).exists() {
-            eprintln!("Path already exists.");
         } else {
-            return true;
-        }
-
-        false
-    };
-
-    let dir = loop {
-        let path = read_string_from_tty(
-            "Enter (absolute) path where mirrored repository will be stored",
-            Some("/var/lib/proxmox-offline-mirror/mirrors/{id}"),
-        )?;
-        if check_path(&path) {
             break path;
         }
     };
+    let dir = format!("{base_dir}/{id}");
 
     let verify = read_bool_from_tty(
         "Should already mirrored files be re-verified when updating the mirror? (io-intensive!)",
@@ -386,14 +377,8 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
             eprintln!("config section '{suggested_id}' already exists, skipping..");
         } else {
             let repository = format!("deb {url}");
-            let extra_dir = if let Some((base, _id)) = dir.rsplit_once('/') {
-                format!("{base}/{suggested_id}")
-            } else {
-                eprintln!(
-                    "Cannot determine base dir for aut-added Debian repository '{suggested_id}'"
-                );
-                continue;
-            };
+            let dir = format!("{base_dir}/{suggested_id}");
+
             configs.push(MirrorConfig {
                 id: suggested_id,
                 repository,
@@ -401,7 +386,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 key_path,
                 verify,
                 sync,
-                dir: extra_dir,
+                dir,
                 use_subscription: None,
             });
         }
