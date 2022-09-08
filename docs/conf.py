@@ -95,7 +95,7 @@ man_pages = [
     ('proxmox-offline-mirror/man1', 'proxmox-offline-mirror', 'Command line tool for Backup and Restore', [author], 1),
     ('proxmox-apt-repo/man1', 'proxmox-apt-repo', 'Command line tool to manage and configure the backup server.', [author], 1),
     # configs
-    ('config/mirror/man5', 'mirror.cfg', 'Mirror Configuration', [author], 5),
+    ('config/mirror/man5', 'proxmox-offline-mirror.cfg', 'Proxmox Offline Mirror Configuration', [author], 5),
 ]
 
 

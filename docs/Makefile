@@ -10,7 +10,7 @@ MAN1_PAGES := 				\
 	proxmox-apt-repo.1
 
 MAN5_PAGES :=				\
-	mirror.cfg.5
+	proxmox-offline-mirror.cfg.5
 
 # Sphinx documentation setup
 SPHINXOPTS    =
