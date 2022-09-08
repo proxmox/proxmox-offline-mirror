@@ -6,7 +6,7 @@ use std::convert::TryFrom;
 
 use proxmox_offline_mirror::{
     config::{SubscriptionKey, SubscriptionKeyUpdater},
-    subscription::{extract_mirror_key, refresh},
+    subscription::{extract_mirror_key, refresh_mirror_key, refresh_offline_keys},
     types::{ProductType, PROXMOX_SUBSCRIPTION_KEY_SCHEMA},
 };
 use proxmox_subscription::{files::DEFAULT_SIGNING_KEY, SubscriptionStatus};
@@ -235,21 +235,18 @@ async fn add_mirror_key(config: Option<String>, key: String, _param: Value) -> R
         );
     }
 
-    let mut refreshed =
-        proxmox_offline_mirror::subscription::refresh(data.clone(), vec![], public_key()?).await?;
+    let info = proxmox_offline_mirror::subscription::refresh_mirror_key(data.clone())?;
 
-    if let Some(info) = refreshed.pop() {
-        eprintln!(
-            "Refreshed subscription info - status: {}, message: {}",
-            info.status,
-            info.message.as_ref().unwrap_or(&"-".to_string())
-        );
+    eprintln!(
+        "Refreshed subscription info - status: {}, message: {}",
+        info.status,
+        info.message.as_ref().unwrap_or(&"-".to_string())
+    );
 
-        if info.key.as_ref() == Some(&data.key) {
-            data.info = Some(base64::encode(serde_json::to_vec(&info)?));
-        } else {
-            bail!("Server returned subscription info for wrong key.");
-        }
+    if info.key.as_ref() == Some(&data.key) {
+        data.info = Some(base64::encode(serde_json::to_vec(&info)?));
+    } else {
+        bail!("Server returned subscription info for wrong key.");
     }
 
     section_config.set_data(&data.key, "subscription", &data)?;
@@ -310,13 +307,13 @@ async fn add_key(
     if refresh {
         let mirror_key =
             extract_mirror_key(&section_config.convert_to_typed_array("subscription")?)?;
+        refresh_mirror_key(mirror_key.clone())?;
 
-        let mut refreshed = proxmox_offline_mirror::subscription::refresh(
+        let mut refreshed = proxmox_offline_mirror::subscription::refresh_offline_keys(
             mirror_key,
             vec![data.clone()],
             public_key()?,
-        )
-        .await?;
+        )?;
 
         if let Some(info) = refreshed.pop() {
             if info.key.as_ref() == Some(&data.key) {
@@ -440,16 +437,39 @@ pub async fn refresh_keys(config: Option<String>, key: Option<String>) -> Result
 
     let (mut config, _digest) = proxmox_offline_mirror::config::config(&config_file)?;
 
-    let keys: Vec<SubscriptionKey> = config.convert_to_typed_array("subscription")?;
+    let mut keys: Vec<SubscriptionKey> = config.convert_to_typed_array("subscription")?;
+    for key in &mut keys {
+        if key.product() == ProductType::Pom {
+            match refresh_mirror_key(key.clone()) {
+                Ok(info) => {
+                    eprintln!(
+                        "Refreshed mirror key info - key: {}, status: {}, message: {}",
+                        key.key,
+                        info.status,
+                        info.message.as_ref().unwrap_or(&"-".to_string())
+                    );
+                    key.info = Some(base64::encode(serde_json::to_vec(&info)?));
+                    config.set_data(&key.key.clone(), "subscription", key)?;
+                }
+                Err(err) => eprintln!(
+                    "Failed refreshing mirror key info - key: {}, error: {err}",
+                    key.key
+                ),
+            }
+        }
+    }
+
     let mirror_key = extract_mirror_key(&keys)?;
 
     let refreshed = if let Some(key) = key {
         match keys.iter().find(|k| k.key == key) {
-            Some(key) => refresh(mirror_key, vec![key.to_owned()], public_key()?).await?,
+            Some(key) => {
+                refresh_offline_keys(mirror_key, vec![key.to_owned()], public_key()?)?
+            }
             None => bail!("Subscription key '{key}' not configured."),
         }
     } else {
-        refresh(mirror_key, keys, public_key()?).await?
+        refresh_offline_keys(mirror_key, keys, public_key()?)?
     };
 
     for info in refreshed {
