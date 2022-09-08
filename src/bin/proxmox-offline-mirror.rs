@@ -472,7 +472,9 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
 
     enum Action {
         SelectMirror,
+        SelectAllMirrors,
         DeselectMirror,
+        DeselectAllMirrors,
         Proceed,
     }
 
@@ -482,6 +484,7 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
             println!("No mirrors selected for inclusion on medium so far.");
             vec![
                 (Action::SelectMirror, "Add mirror to selection."),
+                (Action::SelectAllMirrors, "Add all mirrors to selection."),
                 (Action::Proceed, "Proceed"),
             ]
         } else {
@@ -494,12 +497,21 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
                 println!("No more mirrors available for selection!");
                 vec![
                     (Action::DeselectMirror, "Remove mirror from selection."),
+                    (
+                        Action::DeselectAllMirrors,
+                        "Remove all mirrors from selection.",
+                    ),
                     (Action::Proceed, "Proceed"),
                 ]
             } else {
                 vec![
                     (Action::SelectMirror, "Add mirror to selection."),
+                    (Action::SelectAllMirrors, "Add all mirrors to selection."),
                     (Action::DeselectMirror, "Remove mirror from selection."),
+                    (
+                        Action::DeselectAllMirrors,
+                        "Remove all mirrors from selection.",
+                    ),
                     (Action::Proceed, "Proceed"),
                 ]
             }
@@ -530,6 +542,10 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
                     .collect();
                 selected_mirrors.push(selected);
             }
+            Action::SelectAllMirrors => {
+                selected_mirrors.extend_from_slice(&available_mirrors);
+                available_mirrors.truncate(0);
+            }
             Action::DeselectMirror => {
                 if selected_mirrors.is_empty() {
                     println!("No mirrors selected (yet).");
@@ -549,6 +565,10 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
                     .filter(|v| *v != selected)
                     .collect();
                 available_mirrors.push(selected);
+            }
+            Action::DeselectAllMirrors => {
+                available_mirrors.extend_from_slice(&selected_mirrors);
+                selected_mirrors.truncate(0);
             }
             Action::Proceed => {
                 break;
