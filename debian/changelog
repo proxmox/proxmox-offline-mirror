@@ -1,3 +1,17 @@
+rust-proxmox-offline-mirror (0.3.0-1) stable; urgency=medium
+
+  * pool: allow pool re-use (breaking change!)
+
+  * pool: improve sync progress reporting
+
+  * docs: lots of improvements
+
+  * rename proxmox-apt-repo to proxmox-offline-mirror-helper
+
+  * move proxmox-offline-mirror-helper into own package
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 9 Sep 2022 13:50:43 +0200
+
 rust-proxmox-offline-mirror (0.2.0-1) stable; urgency=medium
 
   * split out docs package

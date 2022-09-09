@@ -81,10 +81,10 @@ Provides:
  librust-proxmox-offline-mirror+default-dev (= ${binary:Version}),
  librust-proxmox-offline-mirror-0-dev (= ${binary:Version}),
  librust-proxmox-offline-mirror-0+default-dev (= ${binary:Version}),
- librust-proxmox-offline-mirror-0.2-dev (= ${binary:Version}),
- librust-proxmox-offline-mirror-0.2+default-dev (= ${binary:Version}),
- librust-proxmox-offline-mirror-0.2.0-dev (= ${binary:Version}),
- librust-proxmox-offline-mirror-0.2.0+default-dev (= ${binary:Version})
+ librust-proxmox-offline-mirror-0.3-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.3+default-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.3.0-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.3.0+default-dev (= ${binary:Version})
 Description: Proxmox offline repository mirror and subscription key manager - Rust source code
  This package contains the source for the Rust proxmox-offline-mirror crate,
  packaged by debcargo for use with cargo and dh-cargo.
@@ -136,6 +136,8 @@ Suggests:
  ${cargo:Suggests}
 Provides:
  ${cargo:Provides}
+Breaks: proxmox-offline-mirror (<< 0.3.0~)
+Replaces: proxmox-offline-mirror (<< 0.3.0~)
 Built-Using: ${cargo:Built-Using}
 XB-X-Cargo-Built-Using: ${cargo:X-Cargo-Built-Using}
 Description: Proxmox offline repository mirror and subscription key manager helper

@@ -23,6 +23,8 @@ Suggests:
  ${cargo:Suggests}
 Provides:
  ${cargo:Provides}
+Breaks: proxmox-offline-mirror (<< 0.3.0~)
+Replaces: proxmox-offline-mirror (<< 0.3.0~)
 Built-Using: ${cargo:Built-Using}
 XB-X-Cargo-Built-Using: ${cargo:X-Cargo-Built-Using}
 Description: Proxmox offline repository mirror and subscription key manager helper
