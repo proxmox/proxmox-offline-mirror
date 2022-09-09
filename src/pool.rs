@@ -12,6 +12,7 @@ use nix::{unistd, NixPath};
 
 use proxmox_apt::deb822::CheckSums;
 use proxmox_sys::fs::{create_path, file_get_contents, replace_file, CreateOptions};
+use proxmox_time::epoch_i64;
 use walkdir::WalkDir;
 
 #[derive(Debug)]
@@ -256,6 +257,7 @@ impl PoolLockGuard<'_> {
         println!("Looking for new files and links..");
         let mut checked_link_count = 0;
         let progress_modulo = max(total_link_count / 50, 10) as usize;
+        let mut last_progress = epoch_i64();
 
         for link_entry in WalkDir::new(&self.pool.link_dir).into_iter() {
             let path = link_entry?.into_path();
@@ -293,7 +295,8 @@ impl PoolLockGuard<'_> {
                 None => bail!("Found file not part of source pool: {path:?}"),
             }
 
-            if checked_link_count % progress_modulo == 0 {
+            if checked_link_count % progress_modulo == 0 || last_progress + 30 < epoch_i64() {
+                last_progress = epoch_i64();
                 println!("Progress: checked {checked_link_count} links; added {added_count} files ({added_size}b) / {link_count} links to target pool");
             }
         }
