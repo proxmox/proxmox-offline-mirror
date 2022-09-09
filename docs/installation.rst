@@ -12,19 +12,19 @@ System Requirements
 * Debian based system (physical host, VM or container)
 
 * Sufficient storage space for the local mirrors.
-  For a basic Debian and Proxmox VE we recommend at least 150 GB
+  For a basic Debian and Proxmox VE we recommend at least 150 GiB
 
-* A filesystem supporting hard links for both, local host and external medias.
-  Note that most Linux derived file systems support hard links, but Windows derived ones (e.g.,
-  \*FAT) do *not* support hard links.
+* A file system supporting hard links for both, the local host and the external medium.  Note that
+  most Linux derived file systems support hard links, but Windows derived ones (for example, \*FAT)
+  do *not* support hard links.
 
 .. _apt_install_pom:
 
 Installation via APT
 --------------------
 
-If the host you want to install the ``proxmox-offline-mirror`` tools already has a package
-repository from a Proxmox Project configured, you can simply install the offline mirror tool through
+If the host you want to install the ``proxmox-offline-mirror`` tools on, already has a package
+repository from a Proxmox solution configured, you can simply install the offline mirror tool with
 ``apt``:
 
 .. code-block:: console
@@ -32,7 +32,7 @@ repository from a Proxmox Project configured, you can simply install the offline
      # apt update
      # apt install proxmox-offline-mirror
 
-If you do not have any Proxmox project's repository set up, see :ref:`package_repos_secure_apt` and
+If you do not have any Proxmox repository set up, see :ref:`package_repos_secure_apt` and
 :ref:`package_repositories_client_only_apt` for how to do so before using above commands.
 
 Debian Package Repositories
@@ -43,7 +43,7 @@ defined in ``/etc/apt/sources.list`` and the ``.list`` files found in the ``/etc
 directory. Updates can be installed directly with the ``apt`` command line tool, or via the GUI.
 
 APT ``sources.list`` files list one package repository per line, with the most preferred source
-listed first. Empty lines are ignored and a ``#`` character anywhere on a line marks the remainder
+listed first. Empty lines are ignored, and a ``#`` character anywhere on a line marks the remainder
 of that line as a comment. The information available from the configured sources is acquired by
 ``apt update``.
 
@@ -58,7 +58,7 @@ verify that all packages are from a trusted source.
 .. tip:: If you install Proxmox Offline Mirror on a system with an existing Proxmox Project's
   installation, the verification key is already installed.
 
-If you install Proxmox Backup Server on top of Debian Bullseye, download and install the key with
+If you install Proxmox Offline Mirror on top of Debian Bullseye, download and install the key with
 the following commands:
 
 .. code-block:: console
@@ -73,7 +73,7 @@ Verify the SHA512 checksum afterwards with the expected output below:
  # sha512sum /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
  7fb03ec8a1675723d2853b84aa4fdb49a46a3bb72b9951361488bfd19b29aab0a789a4f8c7406e71a69aabbc727c936d3549731c4659ffa1a08f44db8fdcebfa  /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
 
-and the md5sum, with the expected output below:
+or the md5sum, with the expected output below:
 
 .. code-block:: console
 
@@ -95,13 +95,14 @@ We recommend re-using the ``pbs-client`` repository for installing the Proxmox O
 vanilla Debian system.
 
 .. hint:: While you could also use a Proxmox VE, Proxmox Backup Server or Proxmox Mail Gateway
-  repository, those ship also some updated packages form Debian native packages, which would get
-  pulled in even if not required for the offline mirroring.
+   repository, those ship some updated packages from Debian native packages, which would get pulled
+   in, even if not required for the offline mirroring.
+
 
 Repositories for Debian 11 (Bullseye) based releases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following snipped
+First edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following snippet:
 
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list.d/pbs-client.list``
