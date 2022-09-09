@@ -17,12 +17,13 @@ use walkdir::WalkDir;
 #[derive(Debug)]
 /// Pool consisting of two (possibly overlapping) directory trees:
 /// - pool_dir contains checksum files added by `add_file`
-/// - base_dir contains directories and hardlinks to checksum files created by `link_file`
+/// - link_dir contains directories and hardlinks to checksum files created by `link_file`
 ///
-/// Files are considered orphaned and eligible for GC if they either only exist in pool_dir or only exist in base_dir
+/// Files are considered orphaned and eligible for GC if they either only exist in pool_dir
+/// or only exist in link dir.
 pub(crate) struct Pool {
     pool_dir: PathBuf,
-    base_dir: PathBuf,
+    link_dir: PathBuf,
 }
 
 /// Lock guard used to guard against concurrent modification
@@ -32,38 +33,39 @@ pub(crate) struct PoolLockGuard<'lock> {
 }
 
 impl Pool {
-    /// Create a new pool by creating `pool_dir` and `base_dir`. They must not exist before calling this function.
-    pub(crate) fn create(base: &Path, pool: &Path) -> Result<Self, Error> {
-        if base.exists() {
-            bail!("Pool base dir already exists.");
-        }
-
-        if pool.exists() {
-            bail!("Pool dir already exists.");
-        }
-
-        create_path(base, None, None)?;
-        create_path(pool, None, None)?;
-
-        Ok(Self {
-            pool_dir: pool.to_path_buf(),
-            base_dir: base.to_path_buf(),
-        })
-    }
-
-    /// Open an existing pool. `pool_dir` and `base_dir` must exist.
-    pub(crate) fn open(base: &Path, pool: &Path) -> Result<Self, Error> {
-        if !base.exists() {
-            bail!("Pool base dir doesn't exist.")
+    /// Create a new pool by creating `pool_dir` and `link_dir`.
+    ///
+    /// Pool dir can already exist, link dir must not exist before calling this function.
+    pub(crate) fn create(link_dir: &Path, pool: &Path) -> Result<Self, Error> {
+        if link_dir.exists() {
+            bail!("Pool link dir {link_dir:?} already exists.");
         }
 
         if !pool.exists() {
-            bail!("Pool dir doesn't exist.");
+            create_path(pool, None, None)?;
+        }
+
+        create_path(link_dir, None, None)?;
+
+        Ok(Self {
+            pool_dir: pool.to_path_buf(),
+            link_dir: link_dir.to_path_buf(),
+        })
+    }
+
+    /// Open an existing pool. `pool_dir` and `link_dir` must exist.
+    pub(crate) fn open(link_dir: &Path, pool: &Path) -> Result<Self, Error> {
+        if !link_dir.exists() {
+            bail!("Pool link dir {link_dir:?} doesn't exist.")
+        }
+
+        if !pool.exists() {
+            bail!("Pool dir {pool:?} doesn't exist.");
         }
 
         Ok(Self {
             pool_dir: pool.to_path_buf(),
-            base_dir: base.to_path_buf(),
+            link_dir: link_dir.to_path_buf(),
         })
     }
 
@@ -143,8 +145,8 @@ impl Pool {
         path.starts_with(&self.pool_dir)
     }
 
-    fn path_in_base(&self, path: &Path) -> bool {
-        path.starts_with(&self.base_dir)
+    fn path_in_link_dir(&self, path: &Path) -> bool {
+        path.starts_with(&self.link_dir)
     }
 
     fn lock_path(&self) -> PathBuf {
@@ -154,19 +156,21 @@ impl Pool {
     }
 
     pub(crate) fn get_path(&self, rel_path: &Path) -> Result<PathBuf, Error> {
-        let mut path = self.base_dir.clone();
+        let mut path = self.link_dir.clone();
         path.push(rel_path);
 
-        if self.path_in_base(&path) {
+        if self.path_in_link_dir(&path) {
             Ok(path)
         } else {
-            bail!("Relative path not inside pool's base directory.");
+            bail!("Relative path not inside pool's link directory.");
         }
     }
 }
 
 impl PoolLockGuard<'_> {
-    // Helper to scan the pool for all checksum files and the total link count. The resulting HashMap can be used to check whether files in `base_dir` are properly registered in the pool or orphaned.
+    // Helper to scan the pool for all checksum files and the total link count. The resulting
+    // HashMap can be used to check whether files in `link_dir` are properly registered in the
+    // pool or orphaned.
     fn get_inode_csum_map(&self) -> Result<(HashMap<u64, CheckSums>, u64), Error> {
         let mut inode_map: HashMap<u64, CheckSums> = HashMap::new();
         let mut link_count = 0;
@@ -277,8 +281,8 @@ impl PoolLockGuard<'_> {
         checked_count = 0;
         let progress_modulo = max(total_link_count / 50, 10) as usize;
 
-        for base_entry in WalkDir::new(&self.pool.base_dir).into_iter() {
-            let path = base_entry?.into_path();
+        for link_entry in WalkDir::new(&self.pool.link_dir).into_iter() {
+            let path = link_entry?.into_path();
             if self.path_in_pool(&path) {
                 continue;
             };
@@ -292,7 +296,7 @@ impl PoolLockGuard<'_> {
 
             match inode_map.get(&meta.st_ino()) {
                 Some(csum) => {
-                    let path = path.strip_prefix(&self.pool.base_dir)?;
+                    let path = path.strip_prefix(&self.pool.link_dir)?;
 
                     if target.link_file(csum, path)? {
                         link_count += 1;
@@ -311,8 +315,8 @@ impl PoolLockGuard<'_> {
         let mut vanished_count = 0usize;
         let (target_inode_map, _target_link_count) = target.get_inode_csum_map()?;
 
-        for base_entry in WalkDir::new(&target.base_dir).into_iter() {
-            let path = base_entry?.into_path();
+        for link_entry in WalkDir::new(&target.link_dir).into_iter() {
+            let path = link_entry?.into_path();
             if target.path_in_pool(&path) {
                 continue;
             };
@@ -375,13 +379,13 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
-    /// Links previously added file into `path` (relative to `base_dir`). Missing parent directories will be created automatically.
+    /// Links previously added file into `path` (relative to `link_dir`). Missing parent directories will be created automatically.
     pub(crate) fn link_file(&self, checksums: &CheckSums, path: &Path) -> Result<bool, Error> {
         let path = self.pool.get_path(path)?;
-        if !self.pool.path_in_base(&path) {
+        if !self.pool.path_in_link_dir(&path) {
             bail!(
                 "Cannot link file outside of pool - {:?} -> {:?}.",
-                self.pool.base_dir,
+                self.pool.link_dir,
                 path
             );
         }
@@ -400,13 +404,13 @@ impl PoolLockGuard<'_> {
         link_file_do(source, &path)
     }
 
-    /// Unlink a previously linked file at `path` (absolute, must be below `base_dir`). Optionally remove any parent directories that became empty.
+    /// Unlink a previously linked file at `path` (absolute, must be below `link_dir`). Optionally remove any parent directories that became empty.
     pub(crate) fn unlink_file(
         &self,
         mut path: &Path,
         remove_empty_parents: bool,
     ) -> Result<(), Error> {
-        if !self.pool.path_in_base(path) {
+        if !self.pool.path_in_link_dir(path) {
             bail!("Cannot unlink file outside of pool.");
         }
 
@@ -419,7 +423,7 @@ impl PoolLockGuard<'_> {
         while let Some(parent) = path.parent() {
             path = parent;
 
-            if !self.pool.path_in_base(path) || !path.is_empty() {
+            if !self.pool.path_in_link_dir(path) || !path.is_empty() {
                 break;
             }
 
@@ -429,9 +433,9 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
-    /// Remove a directory tree at `path` (absolute, must be below `base_dir`)
+    /// Remove a directory tree at `path` (absolute, must be below `link_dir`)
     pub(crate) fn remove_dir(&self, path: &Path) -> Result<(), Error> {
-        if !self.pool.path_in_base(path) {
+        if !self.pool.path_in_link_dir(path) {
             bail!("Cannot unlink file outside of pool.");
         }
 
@@ -441,7 +445,7 @@ impl PoolLockGuard<'_> {
 
     /// Run a garbage collection, removing
     /// - any checksum files that have no links outside of `pool_dir`
-    /// - any files in `base_dir` that have no corresponding checksum files
+    /// - any files in `link_dir` that have no corresponding checksum files
     pub(crate) fn gc(&self) -> Result<(usize, u64), Error> {
         let (inode_map, _link_count) = self.get_inode_csum_map()?;
 
@@ -497,7 +501,7 @@ impl PoolLockGuard<'_> {
             Ok(())
         };
 
-        WalkDir::new(&self.pool.base_dir)
+        WalkDir::new(&self.pool.link_dir)
             .into_iter()
             .try_for_each(|entry| handle_entry(entry, &mut count, &mut size))?;
         WalkDir::new(&self.pool.pool_dir)
@@ -507,23 +511,23 @@ impl PoolLockGuard<'_> {
         Ok((count, size))
     }
 
-    /// Destroy pool by removing `base_dir` and `pool_dir`.
+    /// Destroy pool by removing `link_dir` and `pool_dir`.
     pub(crate) fn destroy(self) -> Result<(), Error> {
         // TODO - this removes the lock file..
         std::fs::remove_dir_all(self.pool_dir.clone())?;
-        std::fs::remove_dir_all(self.base_dir.clone())?;
+        std::fs::remove_dir_all(self.link_dir.clone())?;
         Ok(())
     }
 
-    /// Rename a link or directory from `from` to `to` (both relative to `base_dir`).
+    /// Rename a link or directory from `from` to `to` (both relative to `link_dir`).
     pub(crate) fn rename(&self, from: &Path, to: &Path) -> Result<(), Error> {
-        let mut abs_from = self.base_dir.clone();
+        let mut abs_from = self.link_dir.clone();
         abs_from.push(from);
 
-        let mut abs_to = self.base_dir.clone();
+        let mut abs_to = self.link_dir.clone();
         abs_to.push(to);
 
-        if !self.path_in_base(&abs_from) || !self.path_in_base(&abs_to) {
+        if !self.path_in_link_dir(&abs_from) || !self.path_in_link_dir(&abs_to) {
             bail!("Can only rename within pool..");
         }
 
