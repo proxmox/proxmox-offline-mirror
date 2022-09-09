@@ -52,16 +52,20 @@ Technical Overview
 Behind the scenes, one or more `pools` consisting of
 
 - a pool directory containing checksum files (e.g., `sha256/3dc7bc5f82cdcc4ea0f69dd30d5f6bb19e0ccc36f4a79c865eed0e7a370cd5e4`)
-- a base directory containing directories and hardlinks to the checksum files inside the pool
+- a link directory containing directories and hardlinks to the checksum files inside the pool
   directory
 
-are used to store the repository contents ("snapshots") in a space-efficient way.
+are used to store the repository contents ("snapshots") of repository mirrors in a space-efficient way.
 
 When adding a file, the following steps are done: first the ckecksum file(s) are added, then they
-are linked under one or more paths.  A garbage collect operation will iterate over all files in the
-base directory and remove those, which are not (or no longer) a hardlink to any checksum files. It
+are linked under one or more paths. A garbage collect operation will iterate over all files in the
+link directory and remove those, which are not (or no longer) a hardlink to any checksum files. It
 will also remove any checksum files which have no hardlinks outside of the pool's checksum file
 directories.
+
+A pool directory can be shared by multiple mirrors in order to deduplicate stored files across the
+mirror boundary. For example, it is recommended to have a single pool directory (mirror base directory)
+for all mirrors of Proxmox repositories.
 
 The default config path is ``/etc/proxmox-offline-mirror.cfg``, but it can be overriden on a per
 command basis (for example, to allow operation as a non-root user). Use the ``--config`` CLI option or

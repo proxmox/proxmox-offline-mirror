@@ -29,7 +29,11 @@ following command can be used:
    --key-path /etc/apt/trusted.gpg.d/debian-archive-bullseye-security-automatic.gpg \
    --sync true \
    --verify true \
-   --dir /path/to/mirror/dir/debian-bullseye-security
+   --base-dir /path/to/mirror/base-dir
+
+.. note:: The `base-dir` directory can be shared by mirrors for repositories that have common
+   contents to avoid storing files more than once. For example, having a single base directory
+   for all mirrors referencing Proxmox repositories is recommended.
 
 .. note:: The `all` architecture is meant for architecture independent packages, not for all
    possible architectures. It is usually always sensible to add it in addition to the host-specific
