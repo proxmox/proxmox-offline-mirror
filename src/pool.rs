@@ -488,7 +488,7 @@ impl PoolLockGuard<'_> {
                     }
                 }
             } else {
-                println!("Removing orphan: '{path:?}'");
+                println!("Removing orphan: {path:?}");
                 true
             };
 
