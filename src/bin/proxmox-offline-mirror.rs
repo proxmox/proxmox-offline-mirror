@@ -593,7 +593,7 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
         bail!("Setup wizard can only run interactively.");
     }
 
-    let config_file = config.unwrap_or_else(|| get_config_path());
+    let config_file = config.unwrap_or_else(get_config_path);
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 

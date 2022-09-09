@@ -43,7 +43,7 @@ async fn garbage_collect(
     id: String,
     _param: Value,
 ) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MediaConfig = section_config.lookup("medium", &id)?;
@@ -73,7 +73,7 @@ async fn garbage_collect(
  )]
 /// Print status of a medium
 async fn status(config: Option<String>, id: String, _param: Value) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let medium_config: MediaConfig = section_config.lookup("medium", &id)?;
@@ -198,7 +198,7 @@ async fn sync(
     keys_only: bool,
     _param: Value,
 ) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MediaConfig = section_config.lookup("medium", &id)?;

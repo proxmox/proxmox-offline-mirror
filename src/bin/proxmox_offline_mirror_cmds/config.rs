@@ -17,7 +17,7 @@ use proxmox_offline_mirror::{
 
 pub fn get_config_path() -> String {
     env::var("PROXMOX_OFFLINE_MIRROR_CONFIG")
-        .unwrap_or("/etc/proxmox-offline-mirror.cfg".to_string())
+        .unwrap_or_else(|_| "/etc/proxmox-offline-mirror.cfg".to_string())
 }
 
 pub const LIST_MIRRORS_RETURN_TYPE: ReturnType = ReturnType {
@@ -57,7 +57,7 @@ pub const SHOW_MEDIUM_RETURN_TYPE: ReturnType = ReturnType {
  )]
 /// List configured mirrors
 async fn list_mirror(config: Option<String>, param: Value) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: Vec<MirrorConfig> = config.convert_to_typed_array("mirror")?;
@@ -100,7 +100,7 @@ async fn list_mirror(config: Option<String>, param: Value) -> Result<Value, Erro
  )]
 /// Show full mirror config
 async fn show_mirror(config: Option<String>, id: String, param: Value) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let mut config = config.lookup_json("mirror", &id)?;
@@ -141,7 +141,7 @@ async fn add_mirror(
     data: MirrorConfig,
     _param: Value,
 ) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config)?;
 
@@ -188,7 +188,7 @@ async fn remove_mirror(
     remove_data: bool,
     _param: Value,
 ) -> Result<Value, Error> {
-    let config_file = config.unwrap_or_else(|| get_config_path());
+    let config_file = config.unwrap_or_else(get_config_path);
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
@@ -236,7 +236,7 @@ pub fn update_mirror(
     config: Option<String>,
     id: String,
 ) -> Result<(), Error> {
-    let config_file = config.unwrap_or_else(|| get_config_path());
+    let config_file = config.unwrap_or_else(get_config_path);
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
@@ -286,7 +286,7 @@ pub fn update_mirror(
  )]
 /// List configured media.
 async fn list_media(config: Option<String>, param: Value) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: Vec<MediaConfig> = config.convert_to_typed_array("medium")?;
@@ -329,7 +329,7 @@ async fn list_media(config: Option<String>, param: Value) -> Result<Value, Error
  )]
 /// Show full medium config entry.
 async fn show_medium(config: Option<String>, id: String, param: Value) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let mut config = config.lookup_json("medium", &id)?;
@@ -370,7 +370,7 @@ async fn add_medium(
     data: MediaConfig,
     _param: Value,
 ) -> Result<Value, Error> {
-    let config = config.unwrap_or_else(|| get_config_path());
+    let config = config.unwrap_or_else(get_config_path);
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config)?;
 
@@ -417,7 +417,7 @@ async fn remove_medium(
     remove_data: bool,
     _param: Value,
 ) -> Result<Value, Error> {
-    let config_file = config.unwrap_or_else(|| get_config_path());
+    let config_file = config.unwrap_or_else(get_config_path);
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
@@ -468,7 +468,7 @@ pub fn update_medium(
     config: Option<String>,
     id: String,
 ) -> Result<(), Error> {
-    let config_file = config.unwrap_or_else(|| get_config_path());
+    let config_file = config.unwrap_or_else(get_config_path);
 
     let _lock = proxmox_offline_mirror::config::lock_config(&config_file)?;
 
