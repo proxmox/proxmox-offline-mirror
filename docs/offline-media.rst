@@ -1,9 +1,9 @@
 Offline Media
 =============
 
-A Medium is a file system location on which mirrors and subscription info will be saved at.
-This can be an external, portable disk (for example, USB pen drive) or a local network filesystem
-export.
+A medium is a file system location on which mirrored repositories and subscription information can
+be saved at to make it available to the offline Proxmox systems.  This can be an external portable
+disk (for example a USB pen drive) or a local network share.
 
 Setting Up a Medium
 -------------------
@@ -31,20 +31,21 @@ Syncing a Medium
 To sync the local mirrors to a medium, the following command can be used:
 
 .. code-block:: console
-  
+
   proxmox-offline-mirror medium sync --id pve-bullseye
 
-This command will sync all mirrors linked with this medium to the medium's mountpoint, as well as
-sync all offline keys for further processing by ``proxmox-apt-repo`` on the target system.
+This command will sync all mirrors linked with this medium to the medium's mount point.
+Additionally, it will sync all offline keys for further processing by ``proxmox-apt-repo`` on the
+target system.
 
 Using a Medium
 --------------
 
-After syncing a medium, unmount it and make it accessible on the (offline)
-target system. You can now either manually point apt at the synced snapshots,
-or run ``proxmox-apt-repo setup`` to generate a sources.list.d snippet referecing
-selected mirrors and snapshots. Don't forget to remove the snippet again after
-the upgrade is done.
+After syncing a medium, unmount it and make it accessible on the (offline) target system.  Either
+point `apt` directly at the synced snapshots on the medium or run ``proxmox-apt-repo setup``.  The
+setup will let you select the mirrors and snapshots and can generate a `sources.list.d` snippet.
+This snippet can be saved to the ``/etc/apt/sources.list.d`` directory. The default file name is
+``offline-mirror.list``.  Don't forget to remove the snippet after the upgrade is done.
 
 To activate or update an offline subscription key, either use ``proxmox-apt-repo offline-key`` or
 ``proxmox-apt-repo setup``.
