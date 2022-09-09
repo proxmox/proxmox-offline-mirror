@@ -83,7 +83,7 @@ Users with a `Proxmox Offline Mirror` subscription have access to the `Proxmox C
 corresponding offline system has a valid subscription level higher than `Community`. The customer
 portal provides support with guaranteed response times from the Proxmox developers.
 
-For more information or for volume discounts, please contact office@proxmox.com.
+For more information or for volume discounts, please contact sales@proxmox.com.
 
 Community Support Forum
 ^^^^^^^^^^^^^^^^^^^^^^^
