@@ -29,15 +29,15 @@ There are three basic entity types available for configuration:
   They are configured with ``proxmox-offline-mirror key ...``
 
 *mirrors*
-  A mirror consists of an upstream repository metadata and a local path where **snapshots** of the
-  upstream repository are stored.
+  A mirror consists of the metadata of an upstream repository and a local path where **snapshots**
+  of the upstream repository are stored.
 
   - configured with ``proxmox-offline-mirror config mirror ...``
 
   - used with ``proxmox-offline-mirror mirror ...``
 
 *media*
-  A medium consisting of local mirrors and a path where mirrors are synced to
+  A medium consisting of local mirrors and a path where the mirrors are synced to
 
   - configured with ``proxmox-offline-mirror config medium ...``
 
@@ -50,7 +50,8 @@ Technical Overview
 Behind the scenes, one or more `pools` consisting of
 
 - a pool directory containing checksum files (e.g., `sha256/3dc7bc5f82cdcc4ea0f69dd30d5f6bb19e0ccc36f4a79c865eed0e7a370cd5e4`)
-- a base directory containing directories and hardlinks to checksum files inside the pool directory
+- a base directory containing directories and hardlinks to the checksum files inside the pool
+  directory
 
 are used for space-efficient storing of repository contents ("snapshots").
 
@@ -93,8 +94,7 @@ Mailing Lists
 ^^^^^^^^^^^^^
 
 Proxmox Offline Mirror is fully open-source and contributions are welcome! The Proxmox VE
-development mailing list acts also as the primary communication channel for offline mirror
-developers:
+development mailing list acts as the primary communication channel for offline mirror developers:
 
 :Mailing list for developers: `PVE Development List`_
 
