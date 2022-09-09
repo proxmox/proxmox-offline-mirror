@@ -1,0 +1,20 @@
+# with the correct dns setup and path this corresponds to a sources.lists entry
+# deb [ check-valid-until=false ] http://proxmox-offline-mirror.domain.example/<mirror-name>/<snapshot-timestamp> <codename> <suite>
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+
+	server_name proxmox-offline-mirror.domain.example;
+
+	root /path/to/medium;
+	disable_symlinks off;
+	autoindex on;
+
+	error_log /var/log/nginx/proxmox-offline-mirror.error.log;
+	access_log /var/log/nginx/proxmox-offline-mirror.access.log;
+
+	location / {
+	        try_files $uri $uri/ =404;
+	}
+}
+

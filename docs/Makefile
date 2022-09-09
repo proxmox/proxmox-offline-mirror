@@ -12,6 +12,9 @@ MAN1_PAGES := 				\
 MAN5_PAGES :=				\
 	proxmox-offline-mirror.cfg.5
 
+EXAMPLE_FILES :=	\
+	examples/nginx-conf
+
 # Sphinx documentation setup
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
@@ -46,7 +49,7 @@ man-pages: ${GENERATED_SYNOPSIS}
 	${SPHINXBUILD} ${SPHINXOPTS} -b man ./ ${BUILDDIR}/man
 
 .PHONY: html
-html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py ${PRUNE_SIMULATOR_FILES} ${LTO_BARCODE_FILES} ${API_VIEWER_SOURCES}
+html: ${GENERATED_SYNOPSIS} images/proxmox-logo.svg custom.css conf.py ${PRUNE_SIMULATOR_FILES} ${LTO_BARCODE_FILES} ${API_VIEWER_SOURCES} ${EXAMPLE_FILES}
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	install -m 0644 custom.js custom.css images/proxmox-logo.svg $(BUILDDIR)/html/_static/
 	@echo
@@ -83,12 +86,16 @@ install_pdf: latexpdf
 	install -dm755 $(DESTDIR)$(DOCDIR)
 	install -m 0644 output/latex/ProxmoxOfflineMirror.pdf $(DESTDIR)$(DOCDIR)/proxmox-offline-mirror.pdf
 
+install_examples: ${EXAMPLE_FILES}
+	install -dm755 $(DESTDIR)$(DOCDIR)/examples
+	install -m 0644 examples/nginx-conf $(DESTDIR)$(DOCDIR)/examples
+
 ifneq ($(filter nodoc,$(DEB_BUILD_PROFILES)),)
 
 install: install_manual_pages
 
 else
 
-install: install_manual_pages install_html install_pdf
+install: install_manual_pages install_html install_pdf install_examples
 
 endif

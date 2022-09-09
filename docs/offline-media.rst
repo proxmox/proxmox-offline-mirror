@@ -47,5 +47,17 @@ setup will let you select the mirrors and snapshots and can generate a `sources.
 This snippet can be saved to the ``/etc/apt/sources.list.d`` directory. The default file name is
 ``offline-mirror.list``.  Don't forget to remove the snippet after the upgrade is done.
 
+You can also configure an HTTP server to provide the snapshots in your internal network.
+A minimal sample configuration for `nginx`:
+
+  .. literalinclude:: examples/nginx-conf
+
+The corresponding ``/etc/apt/sources.list.d`` file should contain
+
+.. code-block:: sources.list
+
+  deb [ check-valid-until=false ] http://proxmox-offline-mirror.domain.example/<mirror-name>/<snapshot-timestamp> <codename> <suite>
+
+
 To activate or update an offline subscription key, either use ``proxmox-offline-mirror-helper offline-key`` or
 ``proxmox-offline-mirror-helper setup``.
