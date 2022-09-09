@@ -1,2 +1,6 @@
 Cargo.lock
 target
+/*.deb
+/*.changes
+/*.buildinfo
+/*.tar.*
