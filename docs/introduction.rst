@@ -4,10 +4,12 @@ Introduction
 What is Proxmox Offline Mirror?
 -------------------------------
 
-With Proxmox Offline Mirror (POM) you can manage a local apt mirror for all Proxmox and Debian
-projects package updates. You can also export this mirror to a external medium to update systems
-that cannot connect to the repositories via HTTP, for example due to being completely air-gapped.
-Finally you can also manage subscription for such restricted hosts.
+With the Proxmox Offline Mirror tool, you can manage a local apt mirror for all package updates for
+Proxmox and Debian projects. From this local apt mirror you can create an external medium, for
+example a USB flash drive or a local network share, to update systems which cannot access the
+package repositories directly via the internet.  Such systems might be restricted by policies to
+access the public internet or are completely air-gapped.  Finally, you can also manage subscriptions
+for such restricted hosts.
 
 This tool consists of two binaries:
 
@@ -15,8 +17,8 @@ This tool consists of two binaries:
   The mirror tool to create and manage mirrors and media containing repositories
 
 ``proxmox-apt-repo``
-  The helper to use media and setup subscription key on offline Proxmox VE,
-  Proxmox Mail Gateway or Proxmox Backup Server systems
+  The helper to use the external medium on offline Proxmox VE, Proxmox Mail Gateway or Proxmox
+  Backup Server systems as well as managing subscriptions on these systems.
 
 Terminology
 -----------
@@ -53,16 +55,17 @@ Behind the scenes, one or more `pools` consisting of
 - a base directory containing directories and hardlinks to the checksum files inside the pool
   directory
 
-are used for space-efficient storing of repository contents ("snapshots").
+are used to store the repository contents ("snapshots") in a space-efficient way.
 
-Adding a file consists of first adding the checksum file(s), then linking them under one or more
-paths. a garbage collect operation will iterate over all files in the base directory and remove
-those which are not (or no longer) a hardlink to any checksum files, and remove any checksum files
-which have no hardlinks outside of the pool checksum file directories.
+When adding a file, the following steps are done: first the ckecksum file(s) are added, then they
+are linked under one or more paths.  A garbage collect operation will iterate over all files in the
+base directory and remove those, which are not (or no longer) a hardlink to any checksum files. It
+will also remove any checksum files which have no hardlinks outside of the pool's checksum file
+directories.
 
-A default config path of ``/etc/proxmox-offline-mirror.cfg`` is used, but is overridable on a per
-command basis (for example, to allow operation as non-root user) using either the ``--config`` CLI
-option or the ``PROXMOX_OFFLINE_MIRROR_CONFIG`` environment variable.
+The default config path is ``/etc/proxmox-offline-mirror.cfg``, but it can be overriden on a per
+command basis (for example, to allow operation as a non-root user). Use the ``--config`` CLI option or
+the ``PROXMOX_OFFLINE_MIRROR_CONFIG`` environment variable.
 
 
 .. _get_help:
