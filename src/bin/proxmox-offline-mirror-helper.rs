@@ -268,7 +268,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
             mountpoint: {
                 type: String,
                 optional: true,
-                description: "Path to medium mountpoint - defaults to `proxmox-apt-repo` containing directory.",
+                description: "Path to medium mountpoint - defaults to `proxmox-offline-mirror-helper` containing directory.",
             },
             product: {
                 type: ProductType,

@@ -7,7 +7,7 @@ Command Syntax
 .. include:: proxmox-offline-mirror/synopsis.rst
 
 
-``proxmox-apt-repo``
+``proxmox-offline-mirror-helper``
 --------------------
 
-.. include:: proxmox-apt-repo/synopsis.rst
+.. include:: proxmox-offline-mirror-helper/synopsis.rst

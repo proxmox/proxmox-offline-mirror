@@ -35,17 +35,17 @@ To sync the local mirrors to a medium, the following command can be used:
   proxmox-offline-mirror medium sync --id pve-bullseye
 
 This command will sync all mirrors linked with this medium to the medium's mount point.
-Additionally, it will sync all offline keys for further processing by ``proxmox-apt-repo`` on the
+Additionally, it will sync all offline keys for further processing by ``proxmox-offline-mirror-helper`` on the
 target system.
 
 Using a Medium
 --------------
 
 After syncing a medium, unmount it and make it accessible on the (offline) target system.  Either
-point `apt` directly at the synced snapshots on the medium or run ``proxmox-apt-repo setup``.  The
+point `apt` directly at the synced snapshots on the medium or run ``proxmox-offline-mirror-helper setup``.  The
 setup will let you select the mirrors and snapshots and can generate a `sources.list.d` snippet.
 This snippet can be saved to the ``/etc/apt/sources.list.d`` directory. The default file name is
 ``offline-mirror.list``.  Don't forget to remove the snippet after the upgrade is done.
 
-To activate or update an offline subscription key, either use ``proxmox-apt-repo offline-key`` or
-``proxmox-apt-repo setup``.
+To activate or update an offline subscription key, either use ``proxmox-offline-mirror-helper offline-key`` or
+``proxmox-offline-mirror-helper setup``.

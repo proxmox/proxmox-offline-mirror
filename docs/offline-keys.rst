@@ -58,6 +58,6 @@ Deploy Keys
 -----------
 
 The subscription information is transferred to a medium (see :ref:`sync_medium`) and can then be
-activated on the offline system with either ``proxmox-apt-repo offline-key`` or ``proxmox-apt-repo
-setup``. This process must be repeated at least once a year or before the next due date of the
-subscription key is reached, whichever comes first.
+activated on the offline system with either ``proxmox-offline-mirror-helper offline-key`` or
+``proxmox-offline-mirror-helper setup``. This process must be repeated at least once a year or
+before the next due date of the subscription key is reached, whichever comes first.

@@ -1,8 +1,0 @@
-
-Package: proxmox-offline-mirror-docs
-Architecture: all
-Section: admin
-Breaks: proxmox-offline-mirror (<< 0.2.0~)
-Replaces: proxmox-offline-mirror (<< 0.2.0~)
-Description: Proxmox offline repository mirror and subscription key manager
- This package contains the documentation for proxmox-offline-mirror.

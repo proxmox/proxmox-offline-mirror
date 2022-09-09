@@ -16,7 +16,7 @@ This tool consists of two binaries:
 ``proxmox-offline-mirror``
   The mirror tool to create and manage mirrors and media containing repositories
 
-``proxmox-apt-repo``
+``proxmox-offline-mirror-helper``
   The helper to use the external medium on offline Proxmox VE, Proxmox Mail Gateway or Proxmox
   Backup Server systems as well as managing subscriptions on these systems.
 

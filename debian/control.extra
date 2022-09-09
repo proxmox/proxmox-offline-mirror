@@ -1,0 +1,30 @@
+
+Package: proxmox-offline-mirror-docs
+Architecture: all
+Section: admin
+Breaks: proxmox-offline-mirror (<< 0.2.0~)
+Replaces: proxmox-offline-mirror (<< 0.2.0~)
+Description: Proxmox offline repository mirror and subscription key manager
+ This package contains the documentation for proxmox-offline-mirror.
+
+Package: proxmox-offline-mirror-helper
+Architecture: any
+Multi-Arch: allowed
+Section: admin
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+ ${cargo:Depends},
+ proxmox-offline-mirror-docs,
+ proxmox-archive-keyring
+Recommends:
+ ${cargo:Recommends}
+Suggests:
+ ${cargo:Suggests}
+Provides:
+ ${cargo:Provides}
+Built-Using: ${cargo:Built-Using}
+XB-X-Cargo-Built-Using: ${cargo:X-Cargo-Built-Using}
+Description: Proxmox offline repository mirror and subscription key manager helper
+ This package contains the proxmox-offline-mirror-helper binary for managing Proxmox offline APT
+ repositories and subscription keys on Proxmox offline systems.
