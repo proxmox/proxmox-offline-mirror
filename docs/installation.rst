@@ -1,7 +1,7 @@
 Installation
 ============
 
-Proxmox Offline Mirror package is released as standard Debian package and shipped by the Proxmox VE,
+Proxmox Offline Mirror is released as standard Debian package and is available in the Proxmox VE,
 Proxmox Backup Server and Proxmox Mail Gateway package repositories.
 
 System Requirements
@@ -32,8 +32,9 @@ repository from a Proxmox solution configured, you can simply install the offlin
      # apt update
      # apt install proxmox-offline-mirror
 
-If you do not have any Proxmox repository set up, see :ref:`package_repos_secure_apt` and
-:ref:`package_repositories_client_only_apt` for how to do so before using above commands.
+If you do not have any Proxmox VE, Proxmox Backup Server or Proxmox Mail Gateway repositories set
+up, see :ref:`package_repos_secure_apt` and :ref:`package_repositories_client_only_apt` for how to
+do so before using the commands above.
 
 Debian Package Repositories
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -55,8 +56,8 @@ SecureApt
 The `Release` files in the repositories are signed with GnuPG. APT is using these signatures to
 verify that all packages are from a trusted source.
 
-.. tip:: If you install Proxmox Offline Mirror on a system with an existing Proxmox Project's
-  installation, the verification key is already installed.
+.. tip:: If you install Proxmox Offline Mirror on an existing Proxmox VE, Proxmox Backup Server or
+   Proxmox Mail Gateway, the verification key will already be present.
 
 If you install Proxmox Offline Mirror on top of Debian Bullseye, download and install the key with
 the following commands:
@@ -82,25 +83,29 @@ or the md5sum, with the expected output below:
 
 .. _package_repositories_client_only_apt:
 
-Reuse a Proxmox Repository for Offline Mirror Tool
+Set up the Repository on non Proxmox based systems
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For modern Linux distributions using `apt` as package manager, like all Debian and Ubuntu Derivative
-do, you may be able to use the APT-based repository.
+If you do not have an internet facing installation of a Proxmox solution, or want to set up a
+dedicated system for Proxmox Offline Mirror, you need to configure the repository first.
 
-In order to configure this repository you need to first :ref:`setup the Proxmox release key
+This should work on any Linux distribution using `apt` as package manager, such as Debian, Ubuntu or
+derivatives thereof.
+
+To configure the repository, you first need to :ref:`set up the Proxmox release key
 <package_repos_secure_apt>`. After that, add the repository URL to the APT sources lists.
 
-We recommend re-using the ``pbs-client`` repository for installing the Proxmox Offline Mirror on a
-vanilla Debian system.
+We recommend re-using the ``pbs-client`` repository for installing the Proxmox Offline Mirror on non
+Proxmox systems.
 
 .. hint:: While you could also use a Proxmox VE, Proxmox Backup Server or Proxmox Mail Gateway
    repository, those ship some updated packages from Debian native packages, which would get pulled
    in, even if not required for the offline mirroring.
 
+Repository for Debian 11 (Bullseye) based releases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Repositories for Debian 11 (Bullseye) based releases
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Here are the actual steps for a generic Debian 11 (Bullseye) based system.
 
 First edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following snippet:
 
