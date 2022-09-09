@@ -71,7 +71,7 @@ impl Pool {
 
     /// Lock a pool to add/remove files or links, or protect against concurrent modifications.
     pub(crate) fn lock(&self) -> Result<PoolLockGuard, Error> {
-        let timeout = std::time::Duration::new(10, 0);
+        let timeout = std::time::Duration::new(30, 0);
         let lock = Some(proxmox_sys::fs::open_file_locked(
             &self.lock_path(),
             timeout,
@@ -237,8 +237,8 @@ impl PoolLockGuard<'_> {
     /// Syncs the pool into a target pool, optionally verifying file contents along the way.
     ///
     /// This proceeds in four phases:
-    /// - iterate over source pool checksum files, add missing ones to target pool
-    /// - iterate over source pool links, add missing ones to target pool
+    /// - iterate over source pool checksum files to obtain information about existing files
+    /// - iterate over source pool links, add missing checksum files and links to target pool
     /// - iterate over target pool links, remove those which are not present in source pool
     /// - if links were removed in phase 3, run GC on target pool
     pub(crate) fn sync_pool(&self, target: &Pool, verify: bool) -> Result<(), Error> {
@@ -247,38 +247,14 @@ impl PoolLockGuard<'_> {
         let (inode_map, total_link_count) = self.get_inode_csum_map()?;
 
         let total_count = inode_map.len();
-        let progress_modulo = max(total_count / 50, 5);
         println!("Found {total_count} pool checksum files.");
 
         let mut added_count = 0usize;
         let mut added_size = 0usize;
         let mut link_count = 0usize;
-        let mut checked_count = 0usize;
 
-        println!("Looking for new checksum files..");
-        for csum in inode_map.values() {
-            checked_count += 1;
-
-            if target.contains(csum) {
-                if verify {
-                    target.get_contents(csum, true)?;
-                }
-            } else {
-                let contents = self.get_contents(csum, verify)?;
-                target.add_file(&contents, csum, verify)?;
-
-                added_count += 1;
-                added_size += contents.len();
-            }
-
-            if checked_count % progress_modulo == 0 {
-                println!("Progress: checked {checked_count} files; added {added_count} files ({added_size}b) to target pool");
-            }
-        }
-        println!("Stats: checked {checked_count} files; added {added_count} files ({added_size}b) to target pool");
-
-        println!("Looking for new links..");
-        checked_count = 0;
+        println!("Looking for new files and links..");
+        let mut checked_link_count = 0;
         let progress_modulo = max(total_link_count / 50, 10) as usize;
 
         for link_entry in WalkDir::new(&self.pool.link_dir).into_iter() {
@@ -292,10 +268,22 @@ impl PoolLockGuard<'_> {
                 continue;
             };
 
-            checked_count += 1;
+            checked_link_count += 1;
 
             match inode_map.get(&meta.st_ino()) {
                 Some(csum) => {
+                    if target.contains(csum) {
+                        if verify {
+                            target.get_contents(csum, true)?;
+                        }
+                    } else {
+                        let contents = self.get_contents(csum, verify)?;
+                        target.add_file(&contents, csum, verify)?;
+
+                        added_count += 1;
+                        added_size += contents.len();
+                    }
+
                     let path = path.strip_prefix(&self.pool.link_dir)?;
 
                     if target.link_file(csum, path)? {
@@ -305,14 +293,17 @@ impl PoolLockGuard<'_> {
                 None => bail!("Found file not part of source pool: {path:?}"),
             }
 
-            if checked_count % progress_modulo == 0 {
-                println!("Progress: checked {checked_count} links; added {link_count} links to target pool");
+            if checked_link_count % progress_modulo == 0 {
+                println!("Progress: checked {checked_link_count} links; added {added_count} files ({added_size}b) / {link_count} links to target pool");
             }
         }
-        println!("Stats: checked {checked_count} links; added {link_count} links to target pool");
+        println!(
+            "Stats: checked {checked_link_count} links; added {added_count} files ({added_size}b) / {link_count} links to target pool"
+        );
 
         println!("Looking for vanished files..");
         let mut vanished_count = 0usize;
+        let mut orphaned_count: usize = 0usize;
         let (target_inode_map, _target_link_count) = target.get_inode_csum_map()?;
 
         for link_entry in WalkDir::new(&target.link_dir).into_iter() {
@@ -326,21 +317,29 @@ impl PoolLockGuard<'_> {
                 continue;
             };
 
-            match target_inode_map.get(&meta.st_ino()) {
-                Some(csum) => {
-                    if !self.contains(csum) {
+            let rel_path = path.strip_prefix(&target.pool.link_dir)?;
+            if !self.pool.get_path(rel_path)?.exists() {
+                match target_inode_map.get(&meta.st_ino()) {
+                    Some(_csum) => {
                         target.unlink_file(&path, true)?;
                         vanished_count += 1;
                     }
-                }
-                None => {
-                    eprintln!("Found path in target pool that is not registered: {path:?}");
+                    None => {
+                        eprintln!("Found path in target pool that is not registered: {path:?}");
+                        orphaned_count += 1;
+                    }
                 }
             }
         }
 
-        if vanished_count > 0 {
-            println!("Unlinked {vanished_count} vanished files, running GC now.");
+        if vanished_count > 0 || orphaned_count > 0 {
+            if vanished_count > 0 {
+                println!("Unlinked {vanished_count} vanished files.");
+            }
+            if orphaned_count > 0 {
+                println!("Found {orphaned_count} orphaned files.");
+            }
+            println!("Running GC now.");
             let (count, size) = target.gc()?;
             println!("GC removed {count} files, freeing {size}b");
         } else {
@@ -511,11 +510,17 @@ impl PoolLockGuard<'_> {
         Ok((count, size))
     }
 
-    /// Destroy pool by removing `link_dir` and `pool_dir`.
+    /// Destroy this pool instance by removing `link_dir` and running a GC. The pool base dir will remain.
     pub(crate) fn destroy(self) -> Result<(), Error> {
-        // TODO - this removes the lock file..
-        std::fs::remove_dir_all(self.pool_dir.clone())?;
-        std::fs::remove_dir_all(self.link_dir.clone())?;
+        // remove links so GC can pick them up
+        std::fs::remove_dir_all(&self.link_dir)?;
+
+        // GC expects the link dir to exist
+        create_path(&self.link_dir, None, None)?;
+        self.gc()?;
+
+        // now remove the empty one again
+        std::fs::remove_dir_all(&self.link_dir)?;
         Ok(())
     }
 

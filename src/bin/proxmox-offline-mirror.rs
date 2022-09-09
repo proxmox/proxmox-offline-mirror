@@ -362,7 +362,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
             break path;
         }
     };
-    let dir = format!("{base_dir}/{id}");
 
     let verify = read_bool_from_tty(
         "Should already mirrored files be re-verified when updating the mirror? (io-intensive!)",
@@ -377,7 +376,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
             eprintln!("config section '{suggested_id}' already exists, skipping..");
         } else {
             let repository = format!("deb {url}");
-            let dir = format!("{base_dir}/{suggested_id}");
 
             configs.push(MirrorConfig {
                 id: suggested_id,
@@ -386,7 +384,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 key_path,
                 verify,
                 sync,
-                dir,
+                base_dir: base_dir.clone(),
                 use_subscription: None,
             });
         }
@@ -399,7 +397,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         key_path,
         verify,
         sync,
-        dir,
+        base_dir,
         use_subscription,
     };
 

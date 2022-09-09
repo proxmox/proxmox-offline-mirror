@@ -66,7 +66,7 @@ async fn list_mirror(config: Option<String>, param: Value) -> Result<Value, Erro
     let options = default_table_format_options()
         .column(ColumnConfig::new("id").header("ID"))
         .column(ColumnConfig::new("repository"))
-        .column(ColumnConfig::new("dir"))
+        .column(ColumnConfig::new("base-dir"))
         .column(ColumnConfig::new("verify"))
         .column(ColumnConfig::new("sync"));
 
@@ -250,8 +250,8 @@ pub fn update_mirror(
     if let Some(repository) = update.repository {
         data.repository = repository
     }
-    if let Some(dir) = update.dir {
-        data.dir = dir
+    if let Some(base_dir) = update.base_dir {
+        data.base_dir = base_dir
     }
     if let Some(architectures) = update.architectures {
         data.architectures = architectures

@@ -29,7 +29,7 @@ use crate::types::{
                 description: "Architecture specifier.",
             },
         },
-        "dir": {
+        "base-dir": {
             type: String,
         },
         "key-path": {
@@ -54,8 +54,8 @@ pub struct MirrorConfig {
     pub repository: String,
     /// List of architectures that should be mirrored.
     pub architectures: Vec<String>,
-    /// Path to directory containg mirrored repository.
-    pub dir: String,
+    /// Path to directory containg mirrored repository pool. Can be shared by multiple mirrors.
+    pub base_dir: String,
     /// Path to public key file for verifying repository integrity.
     pub key_path: String,
     /// Whether to verify existing files or assume they are valid (IO-intensive).

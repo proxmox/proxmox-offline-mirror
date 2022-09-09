@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::{bail, format_err, Error};
 use nix::libc;
+use openssl::sha::sha256;
 use proxmox_subscription::SubscriptionInfo;
 use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
 use proxmox_time::{epoch_i64, epoch_to_rfc3339_utc};
@@ -27,6 +28,8 @@ pub struct MirrorInfo {
     pub repository: String,
     /// Mirrored architectures
     pub architectures: Vec<String>,
+    /// Pool directory (relative to medium base)
+    pub pool: String,
 }
 
 impl From<&MirrorConfig> for MirrorInfo {
@@ -34,6 +37,7 @@ impl From<&MirrorConfig> for MirrorInfo {
         Self {
             repository: config.repository.clone(),
             architectures: config.architectures.clone(),
+            pool: mirror_pool_dir(config),
         }
     }
 }
@@ -41,10 +45,16 @@ impl From<&MirrorConfig> for MirrorInfo {
 impl From<MirrorConfig> for MirrorInfo {
     fn from(config: MirrorConfig) -> Self {
         Self {
+            pool: mirror_pool_dir(&config),
             repository: config.repository,
             architectures: config.architectures,
         }
     }
+}
+
+fn mirror_pool_dir(mirror: &MirrorConfig) -> String {
+    let pool_suffix = hex::encode(sha256(mirror.base_dir.as_bytes()));
+    format!(".pool_{pool_suffix}")
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -209,13 +219,13 @@ pub fn gc(medium: &crate::config::MediaConfig) -> Result<(), Error> {
     let mut total_count = 0usize;
     let mut total_bytes = 0_u64;
 
-    for (id, _info) in state.mirrors {
+    for (id, info) in state.mirrors {
         println!("\nGC for '{id}'");
         let mut mirror_base = medium_base.to_path_buf();
         mirror_base.push(Path::new(&id));
 
-        let mut mirror_pool = mirror_base.clone();
-        mirror_pool.push(".pool"); // TODO make configurable somehow?
+        let mut mirror_pool = medium_base.to_path_buf();
+        mirror_pool.push(info.pool);
 
         if mirror_base.exists() {
             let pool = Pool::open(&mirror_base, &mirror_pool)?;
@@ -341,6 +351,15 @@ pub fn sync(
     let mirror_state = get_mirror_state(medium, &state);
     println!("Previously synced mirrors: {:?}", &mirror_state.synced);
 
+    let pools: HashMap<String, String> =
+        state
+            .mirrors
+            .iter()
+            .fold(HashMap::new(), |mut map, (id, info)| {
+                map.insert(id.clone(), info.pool.clone());
+                map
+            });
+
     let requested: HashSet<String> = mirrors.iter().map(|mirror| mirror.id.clone()).collect();
     if requested != mirror_state.config {
         bail!(
@@ -374,8 +393,12 @@ pub fn sync(
 
         println!("\nSyncing '{}' to {mirror_base:?}..", mirror.id);
 
-        let mut mirror_pool = mirror_base.clone();
-        mirror_pool.push(".pool"); // TODO make configurable somehow?
+        let mut mirror_pool = medium_base.to_path_buf();
+        let pool_dir = match pools.get(&mirror.id) {
+            Some(pool_dir) => pool_dir.to_owned(),
+            None => mirror_pool_dir(&mirror),
+        };
+        mirror_pool.push(pool_dir);
 
         let target_pool = if mirror_base.exists() {
             Pool::open(&mirror_base, &mirror_pool)?
@@ -397,8 +420,16 @@ pub fn sync(
         mirror_base.push(Path::new(&dropped));
 
         if mirror_base.exists() {
-            println!("Removing previously synced, but no longer configured mirror '{dropped}'..");
-            std::fs::remove_dir_all(&mirror_base)?;
+            match pools.get(&dropped) {
+                Some(pool) => {
+                    println!("Removing previously synced, but no longer configured mirror '{dropped}'..");
+                    let mut pool_dir = medium_base.to_path_buf();
+                    pool_dir.push(pool);
+                    let pool = Pool::open(&mirror_base, &pool_dir)?;
+                    pool.lock()?.destroy()?;
+                },
+                None => bail!("No pool information for previously synced, but no longer configured mirror '{dropped}'"),
+            }
         }
     }
 

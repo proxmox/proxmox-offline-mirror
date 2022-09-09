@@ -27,9 +27,13 @@ use proxmox_apt::{
 
 use crate::helpers;
 
+fn mirror_dir(config: &MirrorConfig) -> String {
+    format!("{}/{}", config.base_dir, config.id)
+}
+
 pub(crate) fn pool(config: &MirrorConfig) -> Result<Pool, Error> {
-    let pool_dir = format!("{}/.pool", config.dir);
-    Pool::open(Path::new(&config.dir), Path::new(&pool_dir))
+    let pool_dir = format!("{}/.pool", config.base_dir);
+    Pool::open(Path::new(&mirror_dir(config)), Path::new(&pool_dir))
 }
 
 /// `MirrorConfig`, but some fields converted/parsed into usable types.
@@ -340,12 +344,15 @@ fn fetch_plain_file(
 
 /// Initialize a new mirror (by creating the corresponding pool).
 pub fn init(config: &MirrorConfig) -> Result<(), Error> {
-    let pool_dir = format!("{}/.pool", config.dir);
-    Pool::create(Path::new(&config.dir), Path::new(&pool_dir))?;
+    let pool_dir = format!("{}/.pool", config.base_dir);
+
+    let dir = format!("{}/{}", config.base_dir, config.id);
+
+    Pool::create(Path::new(&dir), Path::new(&pool_dir))?;
     Ok(())
 }
 
-/// Destroy a mirror (by destroying the corresponding pool).
+/// Destroy a mirror (by destroying the corresponding pool's link dir followed by GC).
 pub fn destroy(config: &MirrorConfig) -> Result<(), Error> {
     let pool: Pool = pool(config)?;
     pool.lock()?.destroy()?;
@@ -359,7 +366,9 @@ pub fn list_snapshots(config: &MirrorConfig) -> Result<Vec<Snapshot>, Error> {
 
     let mut list: Vec<Snapshot> = vec![];
 
-    let path = Path::new(&config.dir);
+    let dir = mirror_dir(config);
+
+    let path = Path::new(&dir);
 
     proxmox_sys::fs::scandir(
         libc::AT_FDCWD,
