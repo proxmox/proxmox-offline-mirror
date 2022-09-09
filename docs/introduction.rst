@@ -38,6 +38,10 @@ There are three basic entity types available for configuration:
 
   - used with ``proxmox-offline-mirror mirror ...``
 
+*snapshots*
+  Point-in-time view of a mirror. Snapshots consist of hardlinks into the underlying storage pool
+  to reduce the disk space requirements.
+
 *media*
   A medium consisting of local mirrors and a path where the mirrors are synced to
 
