@@ -8,6 +8,6 @@ Command Syntax
 
 
 ``proxmox-offline-mirror-helper``
---------------------
+---------------------------------
 
 .. include:: proxmox-offline-mirror-helper/synopsis.rst
