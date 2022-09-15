@@ -76,5 +76,5 @@ distclean: clean
 .PHONY: clean
 clean:
 	cargo clean
-	rm -rf *.deb *.buildinfo *.changes *.dsc rust-$(PACKAGE)_*.tar.?z $(BUILDDIR) $(BUILDDIR_TMP)
+	rm -rf *.deb *.buildinfo *.changes *.dsc rust-$(PACKAGE)_*.tar.?z $(PACKAGE)-*/
 	find . -name '*~' -exec rm {} ';'
