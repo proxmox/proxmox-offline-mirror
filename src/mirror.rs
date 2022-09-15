@@ -233,6 +233,7 @@ fn fetch_index_file(
     prefix: &Path,
     reference: &FileReference,
     uncompressed: &FileReference,
+    by_hash: bool,
 ) -> Result<FetchResult, Error> {
     let url = get_dist_url(&config.repository, &reference.path);
     let path = get_dist_path(&config.repository, prefix, &reference.path);
@@ -252,14 +253,36 @@ fn fetch_index_file(
         return Ok(FetchResult { data, fetched: 0 });
     }
 
-    let res = fetch_plain_file(
-        config,
-        &url,
-        &path,
-        reference.size,
-        &reference.checksums,
-        true,
-    )?;
+    let urls = if by_hash {
+        let mut urls = Vec::new();
+        if let Some((base_url, _file_name)) = url.rsplit_once('/') {
+            if let Some(sha512) = reference.checksums.sha512 {
+                urls.push(format!("{base_url}/by-hash/SHA512/{}", hex::encode(sha512)));
+            }
+            if let Some(sha256) = reference.checksums.sha256 {
+                urls.push(format!("{base_url}/by-hash/SHA256/{}", hex::encode(sha256)));
+            }
+        }
+        urls.push(url);
+        urls
+    } else {
+        vec![url]
+    };
+
+    let res = urls
+        .iter()
+        .fold(None, |res, url| match res {
+            Some(Ok(res)) => Some(Ok(res)),
+            _ => Some(fetch_plain_file(
+                config,
+                url,
+                &path,
+                reference.size,
+                &reference.checksums,
+                true,
+            )),
+        })
+        .ok_or_else(|| format_err!("Failed to retrieve {}", reference.path))??;
 
     let mut buf = Vec::new();
     let raw = res.data_ref();
@@ -556,7 +579,13 @@ pub fn create_snapshot(
                 }
 
                 // this will ensure the uncompressed file will be written locally
-                let res = match fetch_index_file(&config, prefix, reference, uncompressed_ref) {
+                let res = match fetch_index_file(
+                    &config,
+                    prefix,
+                    reference,
+                    uncompressed_ref,
+                    release.aquire_by_hash,
+                ) {
                     Ok(res) => res,
                     Err(err) if !reference.file_type.is_package_index() => {
                         eprintln!(
