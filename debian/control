@@ -144,5 +144,6 @@ Replaces: proxmox-offline-mirror (<< 0.3.0~)
 Built-Using: ${cargo:Built-Using}
 XB-X-Cargo-Built-Using: ${cargo:X-Cargo-Built-Using}
 Description: Proxmox offline repository mirror and subscription key manager helper
- This package contains the proxmox-offline-mirror-helper binary for managing Proxmox offline APT
- repositories and subscription keys on Proxmox offline systems.
+ This package contains the proxmox-offline-mirror-helper binary for managing
+ Proxmox offline APT repositories and subscription keys on Proxmox offline
+ systems.
