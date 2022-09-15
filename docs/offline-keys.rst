@@ -10,6 +10,21 @@ the key is valid, it will get a signed data blob in response. The signed respons
 exported to an offline medium to transfer and set the subscription key in a Proxmox solution,
 without any need for an internet connection on the host itself.
 
+
+Minimum Versions for Offline Activation
+---------------------------------------
+
+Offline activation of subscription keys requires support from the respective Proxmox solution. The
+following table shows in which version this support has been added.
+
+=====================  =====================  ======================================
+Solution               Package                Minimum Version
+=====================  =====================  ======================================
+Proxmox VE             pve-manager            7.2-11
+Proxmox Backup Server  proxmox-backup-server  2.2.6-1
+Proxmox Mail Gateway   pmg-api                7.1-7
+=====================  =====================  ======================================
+
 Setup Offline Mirror Key
 ------------------------
 
