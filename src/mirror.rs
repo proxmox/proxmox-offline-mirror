@@ -277,7 +277,7 @@ fn fetch_index_file(
             &buf[..]
         }
         Some(CompressionType::Lzma) | Some(CompressionType::Xz) => {
-            let mut xz = xz2::read::XzDecoder::new(raw);
+            let mut xz = xz2::read::XzDecoder::new_multi_decoder(raw);
             xz.read_to_end(&mut buf)?;
             &buf[..]
         }
