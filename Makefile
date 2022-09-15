@@ -54,7 +54,7 @@ build:
 deb: $(DEB)
 $(DEB): build
 	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc --no-pre-clean
-	lintian $(DEB)
+	lintian $(DEB) $(DOC_DEB) $(HELPER_DEB)
 
 .PHONY: dsc
 dsc: $(DSC)
