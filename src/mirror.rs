@@ -501,14 +501,14 @@ pub fn create_snapshot(
             || match &reference.file_type {
                 FileReferenceType::Ignored => true,
                 FileReferenceType::PDiff => true, // would require fetching the patches as well
-                FileReferenceType::Contents(arch, _)
-                | FileReferenceType::ContentsUdeb(arch, _)
-                | FileReferenceType::Packages(arch, _)
-                | FileReferenceType::PseudoRelease(Some(arch)) => {
-                    !binary || !config.architectures.contains(arch)
-                }
                 FileReferenceType::Sources(_) => !source,
-                _ => false,
+                _ => {
+                    if let Some(arch) = reference.file_type.architecture() {
+                        !binary || !config.architectures.contains(arch)
+                    } else {
+                        false
+                    }
+                }
             };
         if skip {
             println!("Skipping {}", reference.path);
