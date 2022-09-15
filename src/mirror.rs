@@ -534,6 +534,7 @@ pub fn create_snapshot(
 
     let mut packages_size = 0_usize;
     let mut packages_indices = HashMap::new();
+    let mut failed_references = Vec::new();
     for (component, references) in per_component {
         println!("\nFetching indices for component '{component}'");
         let mut component_deb_size = 0;
@@ -555,7 +556,18 @@ pub fn create_snapshot(
                 }
 
                 // this will ensure the uncompressed file will be written locally
-                let res = fetch_index_file(&config, prefix, reference, uncompressed_ref)?;
+                let res = match fetch_index_file(&config, prefix, reference, uncompressed_ref) {
+                    Ok(res) => res,
+                    Err(err) if !reference.file_type.is_package_index() => {
+                        eprintln!(
+                            "Failed to fetch '{:?}' type reference '{}', skipping - {err}",
+                            reference.file_type, reference.path
+                        );
+                        failed_references.push(reference);
+                        continue;
+                    }
+                    Err(err) => bail!(err),
+                };
                 fetch_progress.update(&res);
 
                 if package_index_data.is_none() && reference.file_type.is_package_index() {
@@ -577,6 +589,12 @@ pub fn create_snapshot(
         total_progress += fetch_progress;
     }
     println!("Total deb size: {packages_size}");
+    if !failed_references.is_empty() {
+        eprintln!("Failed to download non-package-index references:");
+        for reference in failed_references {
+            eprintln!("\t{}", reference.path);
+        }
+    }
 
     println!("\nFetching packages..");
     for (basename, references) in packages_indices {
