@@ -232,25 +232,30 @@ fn fetch_index_file(
     config: &ParsedMirrorConfig,
     prefix: &Path,
     reference: &FileReference,
-    uncompressed: &FileReference,
+    uncompressed: Option<&FileReference>,
     by_hash: bool,
 ) -> Result<FetchResult, Error> {
     let url = get_dist_url(&config.repository, &reference.path);
     let path = get_dist_path(&config.repository, prefix, &reference.path);
-    let uncompressed_path = get_dist_path(&config.repository, prefix, &uncompressed.path);
 
-    if config.pool.contains(&reference.checksums) && config.pool.contains(&uncompressed.checksums) {
-        let data = config
-            .pool
-            .get_contents(&uncompressed.checksums, config.verify)?;
+    if let Some(uncompressed) = uncompressed {
+        let uncompressed_path = get_dist_path(&config.repository, prefix, &uncompressed.path);
 
-        // Ensure they're linked at current path
-        config.pool.lock()?.link_file(&reference.checksums, &path)?;
-        config
-            .pool
-            .lock()?
-            .link_file(&uncompressed.checksums, &uncompressed_path)?;
-        return Ok(FetchResult { data, fetched: 0 });
+        if config.pool.contains(&reference.checksums)
+            && config.pool.contains(&uncompressed.checksums)
+        {
+            let data = config
+                .pool
+                .get_contents(&uncompressed.checksums, config.verify)?;
+
+            // Ensure they're linked at current path
+            config.pool.lock()?.link_file(&reference.checksums, &path)?;
+            config
+                .pool
+                .lock()?
+                .link_file(&uncompressed.checksums, &uncompressed_path)?;
+            return Ok(FetchResult { data, fetched: 0 });
+        }
     }
 
     let urls = if by_hash {
@@ -307,12 +312,15 @@ fn fetch_index_file(
     };
 
     let locked = &config.pool.lock()?;
-    if !locked.contains(&uncompressed.checksums) {
-        locked.add_file(decompressed, &uncompressed.checksums, config.sync)?;
-    }
+    if let Some(uncompressed) = uncompressed {
+        if !locked.contains(&uncompressed.checksums) {
+            locked.add_file(decompressed, &uncompressed.checksums, config.sync)?;
+        }
 
-    // Ensure it's linked at current path
-    locked.link_file(&uncompressed.checksums, &uncompressed_path)?;
+        // Ensure it's linked at current path
+        let uncompressed_path = get_dist_path(&config.repository, prefix, &uncompressed.path);
+        locked.link_file(&uncompressed.checksums, &uncompressed_path)?;
+    }
 
     Ok(FetchResult {
         data: decompressed.to_owned(),
@@ -566,15 +574,13 @@ pub fn create_snapshot(
         for basename in references {
             println!("\tFetching '{basename}'..");
             let files = release.files.get(basename).unwrap();
-            let uncompressed_ref = files
-                .iter()
-                .find(|reference| reference.path == *basename)
-                .ok_or_else(|| format_err!("Found derived reference without base reference."))?;
+            let uncompressed_ref = files.iter().find(|reference| reference.path == *basename);
+
             let mut package_index_data = None;
 
             for reference in files {
                 // if both compressed and uncompressed are referenced, the uncompressed file may not exist on the server
-                if reference == uncompressed_ref && files.len() > 1 {
+                if Some(reference) == uncompressed_ref && files.len() > 1 {
                     continue;
                 }
 
