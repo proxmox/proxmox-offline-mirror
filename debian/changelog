@@ -1,3 +1,29 @@
+rust-proxmox-offline-mirror (0.4.0-1) stable; urgency=medium
+
+  * docs: add minimal sample nginx config
+
+  * docs: offline keys: add info about minimum product version that got
+    activation support
+
+  * docs: expand/structure "using medium" section
+
+  * mirror: use xz multi decoder to be compatible with Ubuntu and similar
+    usage of xz
+
+  * mirror: skip failed, non Packages references for better compat with
+    non-Debian/Proxmox repos
+
+  * mirror: handle indices which are only available compressed and support
+    acquiring them by hash
+
+  * mirror: add --dry-run parameter
+
+  * cli: add `mirror snapshot create-all` command, which creates a new
+    snapshot for each configured mirror. This should be suitable for usage in
+    a cron job or systemd timer-triggered unit
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 16 Sep 2022 14:25:59 +0200
+
 rust-proxmox-offline-mirror (0.3.0-1) stable; urgency=medium
 
   * pool: allow pool re-use (breaking change!)
