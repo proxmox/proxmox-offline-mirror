@@ -1,5 +1,6 @@
 use anyhow::{format_err, Error};
 
+use proxmox_section_config::SectionConfigData;
 use proxmox_subscription::SubscriptionStatus;
 use serde_json::Value;
 
@@ -16,6 +17,33 @@ use proxmox_offline_mirror::{
 };
 
 use super::get_config_path;
+
+fn get_subscription_key(
+    config: &SectionConfigData,
+    mirror: &MirrorConfig,
+) -> Result<Option<SubscriptionKey>, Error> {
+    if let Some(product) = &mirror.use_subscription {
+        let subscriptions: Vec<SubscriptionKey> = config.convert_to_typed_array("subscription")?;
+        let key = subscriptions
+            .iter()
+            .find(|key| {
+                if let Ok(Some(info)) = key.info() {
+                    info.status == SubscriptionStatus::Active && key.product() == *product
+                } else {
+                    false
+                }
+            })
+            .ok_or_else(|| {
+                format_err!(
+                    "Need matching active subscription key for product {product}, but none found."
+                )
+            })?
+            .clone();
+        Ok(Some(key))
+    } else {
+        Ok(None)
+    }
+}
 
 #[api(
     input: {
@@ -49,28 +77,7 @@ async fn create_snapshot(
     let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
     let config: MirrorConfig = section_config.lookup("mirror", &id)?;
 
-    let subscription = if let Some(product) = &config.use_subscription {
-        let subscriptions: Vec<SubscriptionKey> =
-            section_config.convert_to_typed_array("subscription")?;
-        let key = subscriptions
-            .iter()
-            .find(|key| {
-                if let Ok(Some(info)) = key.info() {
-                    info.status == SubscriptionStatus::Active && key.product() == *product
-                } else {
-                    false
-                }
-            })
-            .ok_or_else(|| {
-                format_err!(
-                    "Need matching active subscription key for product {product}, but none found."
-                )
-            })?
-            .clone();
-        Some(key)
-    } else {
-        None
-    };
+    let subscription = get_subscription_key(&section_config, &config)?;
 
     proxmox_offline_mirror::mirror::create_snapshot(
         config,
