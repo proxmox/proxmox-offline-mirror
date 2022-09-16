@@ -1,8 +1,9 @@
-use anyhow::{format_err, Error};
+use anyhow::{bail, format_err, Error};
 
 use proxmox_section_config::SectionConfigData;
 use proxmox_subscription::SubscriptionStatus;
 use serde_json::Value;
+use std::collections::HashMap;
 
 use proxmox_router::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
@@ -85,6 +86,80 @@ async fn create_snapshot(
         subscription,
         dry_run,
     )?;
+
+    Ok(())
+}
+
+#[api(
+    input: {
+        properties: {
+            config: {
+                type: String,
+                optional: true,
+                description: "Path to mirroring config file.",
+            },
+            "dry-run": {
+                type: bool,
+                optional: true,
+                default: false,
+                description: "Only fetch indices and print summary of missing package files, don't store anything.",
+            }
+        },
+    },
+ )]
+/// Create a new repository snapshot for each configured mirror, fetching required/missing files
+/// from original repository.
+async fn create_snapshots(
+    config: Option<String>,
+    dry_run: bool,
+    _param: Value,
+) -> Result<(), Error> {
+    let config = config.unwrap_or_else(get_config_path);
+
+    let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
+    let mirrors: Vec<MirrorConfig> = section_config.convert_to_typed_array("mirror")?;
+
+    let mut results = HashMap::new();
+
+    for mirror in mirrors {
+        let mirror_id = mirror.id.clone();
+        println!("\nCREATING SNAPSHOT FOR '{mirror_id}'..");
+        let subscription = match get_subscription_key(&section_config, &mirror) {
+            Ok(opt_key) => opt_key,
+            Err(err) => {
+                eprintln!("Skipping mirror '{mirror_id}' - {err})");
+                results.insert(mirror_id, Err(err));
+                continue;
+            }
+        };
+        let res = proxmox_offline_mirror::mirror::create_snapshot(
+            mirror,
+            &Snapshot::now(),
+            subscription,
+            dry_run,
+        );
+        if let Err(err) = &res {
+            eprintln!("Failed to create snapshot for '{mirror_id}' - {err}");
+        }
+
+        results.insert(mirror_id, res);
+    }
+
+    println!("\nSUMMARY:");
+    for (mirror_id, _res) in results.iter().filter(|(_, res)| res.is_ok()) {
+        println!("{mirror_id}: OK"); // TODO update once we have a proper return value
+    }
+
+    let mut fail = false;
+
+    for (mirror_id, res) in results.into_iter().filter(|(_, res)| res.is_err()) {
+        fail = true;
+        eprintln!("{mirror_id}: ERR - {}", res.unwrap_err());
+    }
+
+    if fail {
+        bail!("Failed to create snapshots for all configured mirrors.");
+    }
 
     Ok(())
 }
@@ -204,6 +279,7 @@ pub fn mirror_commands() -> CommandLineInterface {
             "create",
             CliCommand::new(&API_METHOD_CREATE_SNAPSHOT).arg_param(&["id"]),
         )
+        .insert("create-all", CliCommand::new(&API_METHOD_CREATE_SNAPSHOTS))
         .insert(
             "list",
             CliCommand::new(&API_METHOD_LIST_SNAPSHOTS).arg_param(&["id"]),
