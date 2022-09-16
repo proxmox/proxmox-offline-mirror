@@ -28,11 +28,22 @@ use super::get_config_path;
             id: {
                 schema: MIRROR_ID_SCHEMA,
             },
+            "dry-run": {
+                type: bool,
+                optional: true,
+                default: false,
+                description: "Only fetch indices and print summary of missing package files, don't store anything.",
+            }
         },
     },
  )]
 /// Create a new repository snapshot, fetching required/missing files from original repository.
-async fn create_snapshot(config: Option<String>, id: String, _param: Value) -> Result<(), Error> {
+async fn create_snapshot(
+    config: Option<String>,
+    id: String,
+    dry_run: bool,
+    _param: Value,
+) -> Result<(), Error> {
     let config = config.unwrap_or_else(get_config_path);
 
     let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
@@ -61,7 +72,12 @@ async fn create_snapshot(config: Option<String>, id: String, _param: Value) -> R
         None
     };
 
-    proxmox_offline_mirror::mirror::create_snapshot(config, &Snapshot::now(), subscription)?;
+    proxmox_offline_mirror::mirror::create_snapshot(
+        config,
+        &Snapshot::now(),
+        subscription,
+        dry_run,
+    )?;
 
     Ok(())
 }

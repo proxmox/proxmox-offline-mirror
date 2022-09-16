@@ -143,6 +143,7 @@ fn fetch_release(
     config: &ParsedMirrorConfig,
     prefix: &Path,
     detached: bool,
+    dry_run: bool,
 ) -> Result<FetchResult, Error> {
     let (name, fetched, sig) = if detached {
         println!("Fetching Release/Release.gpg files");
@@ -184,6 +185,13 @@ fn fetch_release(
         sha512,
         ..Default::default()
     };
+
+    if dry_run {
+        return Ok(FetchResult {
+            data: verified,
+            fetched: fetched.fetched,
+        });
+    }
 
     let locked = &config.pool.lock()?;
 
@@ -234,6 +242,7 @@ fn fetch_index_file(
     reference: &FileReference,
     uncompressed: Option<&FileReference>,
     by_hash: bool,
+    dry_run: bool,
 ) -> Result<FetchResult, Error> {
     let url = get_dist_url(&config.repository, &reference.path);
     let path = get_dist_path(&config.repository, prefix, &reference.path);
@@ -248,6 +257,9 @@ fn fetch_index_file(
                 .pool
                 .get_contents(&uncompressed.checksums, config.verify)?;
 
+            if dry_run {
+                return Ok(FetchResult { data, fetched: 0 });
+            }
             // Ensure they're linked at current path
             config.pool.lock()?.link_file(&reference.checksums, &path)?;
             config
@@ -285,6 +297,7 @@ fn fetch_index_file(
                 reference.size,
                 &reference.checksums,
                 true,
+                dry_run,
             )),
         })
         .ok_or_else(|| format_err!("Failed to retrieve {}", reference.path))??;
@@ -310,6 +323,14 @@ fn fetch_index_file(
             &buf[..]
         }
     };
+    let res = FetchResult {
+        data: decompressed.to_owned(),
+        fetched: res.fetched,
+    };
+
+    if dry_run {
+        return Ok(res);
+    }
 
     let locked = &config.pool.lock()?;
     if let Some(uncompressed) = uncompressed {
@@ -322,10 +343,7 @@ fn fetch_index_file(
         locked.link_file(&uncompressed.checksums, &uncompressed_path)?;
     }
 
-    Ok(FetchResult {
-        data: decompressed.to_owned(),
-        fetched: res.fetched,
-    })
+    Ok(res)
 }
 
 /// Helper to fetch arbitrary files like binary packages.
@@ -340,6 +358,7 @@ fn fetch_plain_file(
     max_size: usize,
     checksums: &CheckSums,
     need_data: bool,
+    dry_run: bool,
 ) -> Result<FetchResult, Error> {
     let locked = &config.pool.lock()?;
     let res = if locked.contains(checksums) {
@@ -355,6 +374,11 @@ fn fetch_plain_file(
                 fetched: 0,
             }
         }
+    } else if dry_run && !need_data {
+        FetchResult {
+            data: vec![],
+            fetched: 0,
+        }
     } else {
         let fetched = fetch_repo_file(
             &config.client,
@@ -367,8 +391,10 @@ fn fetch_plain_file(
         fetched
     };
 
-    // Ensure it's linked at current path
-    locked.link_file(checksums, file)?;
+    if !dry_run {
+        // Ensure it's linked at current path
+        locked.link_file(checksums, file)?;
+    }
 
     Ok(res)
 }
@@ -433,6 +459,7 @@ pub fn create_snapshot(
     config: MirrorConfig,
     snapshot: &Snapshot,
     subscription: Option<SubscriptionKey>,
+    dry_run: bool,
 ) -> Result<(), Error> {
     let auth = if let Some(product) = &config.use_subscription {
         match subscription {
@@ -477,11 +504,11 @@ pub fn create_snapshot(
     };
 
     // we want both on-disk for compat reasons
-    let res = fetch_release(&config, prefix, true)?;
+    let res = fetch_release(&config, prefix, true, dry_run)?;
     total_progress.update(&res);
     let _release = parse_release(res, "Release")?;
 
-    let res = fetch_release(&config, prefix, false)?;
+    let res = fetch_release(&config, prefix, false, dry_run)?;
     total_progress.update(&res);
     let release = parse_release(res, "InRelease")?;
 
@@ -591,6 +618,7 @@ pub fn create_snapshot(
                     reference,
                     uncompressed_ref,
                     release.aquire_by_hash,
+                    dry_run,
                 ) {
                     Ok(res) => res,
                     Err(err) if !reference.file_type.is_package_index() => {
@@ -632,6 +660,7 @@ pub fn create_snapshot(
     }
 
     println!("\nFetching packages..");
+    let mut dry_run_progress = Progress::new();
     for (basename, references) in packages_indices {
         let total_files = references.files.len();
         if total_files == 0 {
@@ -643,30 +672,61 @@ pub fn create_snapshot(
 
         let mut fetch_progress = Progress::new();
         for package in references.files {
-            let mut full_path = PathBuf::from(prefix);
-            full_path.push(&package.file);
-            let res = fetch_plain_file(
-                &config,
-                &get_repo_url(&config.repository, &package.file),
-                &full_path,
-                package.size,
-                &package.checksums,
-                false,
-            )?;
-            fetch_progress.update(&res);
+            let url = get_repo_url(&config.repository, &package.file);
+
+            if dry_run {
+                if config.pool.contains(&package.checksums) {
+                    fetch_progress.update(&FetchResult {
+                        data: vec![],
+                        fetched: 0,
+                    });
+                } else {
+                    println!("\t(dry-run) GET missing '{url}' ({}b)", package.size);
+                    fetch_progress.update(&FetchResult {
+                        data: vec![],
+                        fetched: package.size,
+                    });
+                }
+            } else {
+                let mut full_path = PathBuf::from(prefix);
+                full_path.push(&package.file);
+
+                let res = fetch_plain_file(
+                    &config,
+                    &url,
+                    &full_path,
+                    package.size,
+                    &package.checksums,
+                    false,
+                    dry_run,
+                )?;
+                fetch_progress.update(&res);
+            }
+
             if fetch_progress.file_count() % (max(total_files / 100, 1)) == 0 {
                 println!("\tProgress: {fetch_progress}");
             }
         }
         println!("\tProgress: {fetch_progress}");
-        total_progress += fetch_progress;
+        if dry_run {
+            dry_run_progress += fetch_progress;
+        } else {
+            total_progress += fetch_progress;
+        }
     }
 
-    println!("\nStats: {total_progress}");
+    if dry_run {
+        println!("\nDry-run Stats (indices, downloaded but not persisted):\n{total_progress}");
+        println!("\nDry-run stats (packages, new == missing):\n{dry_run_progress}");
+    } else {
+        println!("\nStats: {total_progress}");
+    }
 
-    println!("Rotating temp. snapshot in-place: {prefix:?} -> \"{snapshot}\"");
-    let locked = config.pool.lock()?;
-    locked.rename(prefix, Path::new(&format!("{snapshot}")))?;
+    if !dry_run {
+        println!("Rotating temp. snapshot in-place: {prefix:?} -> \"{snapshot}\"");
+        let locked = config.pool.lock()?;
+        locked.rename(prefix, Path::new(&format!("{snapshot}")))?;
+    }
 
     Ok(())
 }
