@@ -64,16 +64,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
         bail!("Setup wizard can only run interactively.");
     }
 
-    let default_dir = std::env::current_exe().map_or_else(
-        |_| None,
-        |mut p| {
-            p.pop();
-            let p = p.to_str();
-            p.map(str::to_string)
-        },
-    );
-
-    let mountpoint = read_string_from_tty("Path to medium mountpoint", default_dir.as_deref())?;
+    let mountpoint = read_string_from_tty("Path to medium mountpoint", None)?;
     let mountpoint = Path::new(&mountpoint);
     if !mountpoint.exists() {
         bail!("Medium mountpoint doesn't exist.");
@@ -267,8 +258,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
         properties: {
             mountpoint: {
                 type: String,
-                optional: true,
-                description: "Path to medium mountpoint - defaults to `proxmox-offline-mirror-helper` containing directory.",
+                description: "Path to medium mountpoint",
             },
             product: {
                 type: ProductType,
@@ -278,7 +268,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
 )]
 /// Configures and offline subscription key
 async fn setup_offline_key(
-    mountpoint: Option<String>,
+    mountpoint: String,
     product: ProductType,
     _param: Value,
 ) -> Result<(), Error> {
@@ -288,21 +278,6 @@ async fn setup_offline_key(
             format_err!("Proxmox Offline Mirror does not support offline operations.")
         );
     }
-
-    let mountpoint = mountpoint
-        .or_else(|| {
-            std::env::current_exe().map_or_else(
-                |_| None,
-                |mut p| {
-                    p.pop();
-                    let p = p.to_str();
-                    p.map(str::to_string)
-                },
-            )
-        })
-        .ok_or_else(|| {
-            format_err!("Failed to determine fallback mountpoint via executable path.")
-        })?;
 
     let mountpoint = Path::new(&mountpoint);
     if !mountpoint.exists() {
