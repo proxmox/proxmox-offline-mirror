@@ -1,5 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
+    fs::Metadata,
+    os::linux::fs::MetadataExt,
     path::{Path, PathBuf},
 };
 
@@ -16,7 +18,7 @@ use crate::{
     generate_repo_file_line,
     mirror::pool,
     pool::Pool,
-    types::{Snapshot, SNAPSHOT_REGEX},
+    types::{Diff, Snapshot, SNAPSHOT_REGEX},
 };
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -434,4 +436,103 @@ pub fn sync(
     write_state(&lock, medium_base, &state)?;
 
     Ok(())
+}
+
+/// Sync medium's content according to config.
+pub fn diff(
+    medium: &crate::config::MediaConfig,
+    mirrors: Vec<MirrorConfig>,
+) -> Result<HashMap<String, Option<Diff>>, Error> {
+    let medium_base = Path::new(&medium.mountpoint);
+    if !medium_base.exists() {
+        bail!("Medium mountpoint doesn't exist.");
+    }
+
+    let _lock = lock(medium_base)?;
+
+    let state =
+        load_state(medium_base)?.ok_or_else(|| format_err!("Medium not yet initializes."))?;
+
+    let mirror_state = get_mirror_state(medium, &state);
+
+    let pools: HashMap<String, String> =
+        state
+            .mirrors
+            .iter()
+            .fold(HashMap::new(), |mut map, (id, info)| {
+                map.insert(id.clone(), info.pool.clone());
+                map
+            });
+
+    let mut diffs = HashMap::new();
+
+    let convert_file_list_to_diff = |files: Vec<(PathBuf, Metadata)>, added: bool| -> Diff {
+        files
+            .into_iter()
+            .fold(Diff::default(), |mut diff, (file, meta)| {
+                if !meta.is_file() {
+                    return diff;
+                }
+
+                let size = meta.st_size();
+                if added {
+                    diff.added.paths.push((file, size));
+                } else {
+                    diff.removed.paths.push((file, size));
+                }
+                diff
+            })
+    };
+
+    let get_target_pool =
+        |mirror_id: &str, mirror: Option<&MirrorConfig>| -> Result<Option<Pool>, Error> {
+            let mut mirror_base = medium_base.to_path_buf();
+            mirror_base.push(Path::new(mirror_id));
+
+            let mut mirror_pool = medium_base.to_path_buf();
+            let pool_dir = match pools.get(mirror_id) {
+                Some(pool_dir) => pool_dir.to_owned(),
+                None => {
+                    if let Some(mirror) = mirror {
+                        mirror_pool_dir(mirror)
+                    } else {
+                        return Ok(None);
+                    }
+                }
+            };
+            mirror_pool.push(pool_dir);
+
+            Ok(Some(Pool::open(&mirror_base, &mirror_pool)?))
+        };
+
+    for mirror in mirrors.into_iter() {
+        let source_pool: Pool = pool(&mirror)?;
+
+        if !mirror_state.synced.contains(&mirror.id) {
+            let files = source_pool.lock()?.list_files()?;
+            diffs.insert(mirror.id, Some(convert_file_list_to_diff(files, false)));
+            continue;
+        }
+
+        let target_pool = get_target_pool(mirror.id.as_str(), Some(&mirror))?
+            .ok_or_else(|| format_err!("Failed to open target pool."))?;
+        diffs.insert(
+            mirror.id,
+            Some(source_pool.lock()?.diff_pools(&target_pool)?),
+        );
+    }
+
+    for dropped in mirror_state.target_only {
+        match get_target_pool(&dropped, None)? {
+            Some(pool) => {
+                let files = pool.lock()?.list_files()?;
+                diffs.insert(dropped, Some(convert_file_list_to_diff(files, false)));
+            }
+            None => {
+                diffs.insert(dropped, None);
+            }
+        }
+    }
+
+    Ok(diffs)
 }

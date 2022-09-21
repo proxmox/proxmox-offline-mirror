@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Error;
 use serde_json::Value;
@@ -220,6 +220,108 @@ async fn sync(
     Ok(Value::Null)
 }
 
+#[api(
+    input: {
+        properties: {
+            config: {
+                type: String,
+                optional: true,
+                description: "Path to mirroring config file.",
+            },
+            id: {
+                schema: MEDIA_ID_SCHEMA,
+            },
+            verbose: {
+                type: bool,
+                optional: true,
+                default: false,
+                description: "Verbose output (print paths in addition to summary)."
+            },
+        }
+    },
+ )]
+/// Diff a medium
+async fn diff(
+    config: Option<String>,
+    id: String,
+    verbose: bool,
+    _param: Value,
+) -> Result<Value, Error> {
+    let config = config.unwrap_or_else(get_config_path);
+
+    let (section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
+    let config: MediaConfig = section_config.lookup("medium", &id)?;
+    let mut mirrors = Vec::with_capacity(config.mirrors.len());
+    for mirror in &config.mirrors {
+        let mirror: MirrorConfig = section_config.lookup("mirror", mirror)?;
+        mirrors.push(mirror);
+    }
+
+    let mut diffs = medium::diff(&config, mirrors)?;
+    let mut mirrors: Vec<String> = diffs.keys().cloned().collect();
+    mirrors.sort_unstable();
+
+    let sort_paths =
+        |(path, _): &(PathBuf, u64), (other_path, _): &(PathBuf, u64)| path.cmp(other_path);
+
+    let mut first = true;
+    for mirror in mirrors {
+        if first {
+            first = false;
+        } else {
+            println!();
+        }
+
+        println!("Mirror '{mirror}'");
+        if let Some(Some(mut diff)) = diffs.remove(&mirror) {
+            let mut total_size = 0;
+            println!("\t{} file(s) only on medium:", diff.added.paths.len());
+            if verbose {
+                diff.added.paths.sort_unstable_by(sort_paths);
+                diff.changed.paths.sort_unstable_by(sort_paths);
+                diff.removed.paths.sort_unstable_by(sort_paths);
+            }
+            for (path, size) in diff.added.paths {
+                if verbose {
+                    println!("\t\t{path:?}: +{size}b");
+                }
+                total_size += size;
+            }
+            println!("\tTotal size: +{total_size}b");
+
+            total_size = 0;
+            println!(
+                "\n\t{} file(s) missing on medium:",
+                diff.removed.paths.len()
+            );
+            for (path, size) in diff.removed.paths {
+                if verbose {
+                    println!("\t\t{path:?}: -{size}b");
+                }
+                total_size += size;
+            }
+            println!("\tTotal size: -{total_size}b");
+
+            total_size = 0;
+            println!(
+                "\n\t{} file(s) diff between source and medium:",
+                diff.changed.paths.len()
+            );
+            for (path, size) in diff.changed.paths {
+                if verbose {
+                    println!("\t\t{path:?}: +-{size}b");
+                }
+            }
+            println!("\tSum of size differences: +-{total_size}b");
+        } else {
+            // TODO
+            println!("\tNot yet synced or no longer available on source side.");
+        }
+    }
+
+    Ok(Value::Null)
+}
+
 pub fn medium_commands() -> CommandLineInterface {
     let cmd_def = CliCommandMap::new()
         .insert(
@@ -230,7 +332,8 @@ pub fn medium_commands() -> CommandLineInterface {
             "status",
             CliCommand::new(&API_METHOD_STATUS).arg_param(&["id"]),
         )
-        .insert("sync", CliCommand::new(&API_METHOD_SYNC).arg_param(&["id"]));
+        .insert("sync", CliCommand::new(&API_METHOD_SYNC).arg_param(&["id"]))
+        .insert("diff", CliCommand::new(&API_METHOD_DIFF).arg_param(&["id"]));
 
     cmd_def.into()
 }
