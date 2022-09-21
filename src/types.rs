@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use anyhow::Error;
 use proxmox_schema::{api, const_regex, ApiStringFormat, Schema, StringSchema, Updater};
@@ -139,4 +139,18 @@ impl FromStr for ProductType {
             _ => unimplemented!(),
         }
     }
+}
+
+/// Entries of Diff
+#[derive(Default)]
+pub struct DiffMember {
+    pub paths: Vec<(PathBuf, u64)>,
+}
+
+/// Differences between two pools or pool directories
+#[derive(Default)]
+pub struct Diff {
+    pub added: DiffMember,
+    pub changed: DiffMember,
+    pub removed: DiffMember,
 }

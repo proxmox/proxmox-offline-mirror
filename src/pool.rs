@@ -1,7 +1,7 @@
 use std::{
     cmp::max,
     collections::{hash_map::Entry, HashMap},
-    fs::{hard_link, remove_dir, File},
+    fs::{hard_link, remove_dir, File, Metadata},
     ops::Deref,
     os::linux::fs::MetadataExt,
     path::{Path, PathBuf},
@@ -14,6 +14,8 @@ use proxmox_apt::deb822::CheckSums;
 use proxmox_sys::fs::{create_path, file_get_contents, replace_file, CreateOptions};
 use proxmox_time::epoch_i64;
 use walkdir::WalkDir;
+
+use crate::types::Diff;
 
 #[derive(Debug)]
 /// Pool consisting of two (possibly overlapping) directory trees:
@@ -541,6 +543,169 @@ impl PoolLockGuard<'_> {
 
         std::fs::rename(&abs_from, &abs_to)
             .map_err(|err| format_err!("Failed to rename {abs_from:?} to {abs_to:?} - {err}"))
+    }
+
+    /// Calculate diff between two pool dirs
+    pub(crate) fn diff_dirs(&self, path: &Path, other_path: &Path) -> Result<Diff, Error> {
+        let mut diff = Diff::default();
+
+        let handle_entry = |entry: Result<walkdir::DirEntry, walkdir::Error>,
+                            base: &Path,
+                            other_base: &Path,
+                            changed: Option<&mut Vec<(PathBuf, u64)>>,
+                            missing: &mut Vec<(PathBuf, u64)>|
+         -> Result<(), Error> {
+            let path = entry?.into_path();
+
+            let meta = path.metadata()?;
+            if !meta.is_file() {
+                return Ok(());
+            };
+
+            let relative = path.strip_prefix(base)?;
+            let mut absolute = other_base.to_path_buf();
+            absolute.push(relative);
+            if absolute.exists() {
+                if let Some(changed) = changed {
+                    let other_meta = absolute.metadata()?;
+                    if other_meta.st_ino() != meta.st_ino() {
+                        changed.push((
+                            relative.to_path_buf(),
+                            meta.st_size().abs_diff(other_meta.st_size()),
+                        ));
+                    }
+                }
+            } else {
+                missing.push((relative.to_path_buf(), meta.st_size()));
+            }
+
+            Ok(())
+        };
+
+        let path = self.get_path(path)?;
+        let other_path = self.get_path(other_path)?;
+
+        WalkDir::new(&path).into_iter().try_for_each(|entry| {
+            handle_entry(
+                entry,
+                &path,
+                &other_path,
+                Some(&mut diff.changed.paths),
+                &mut diff.removed.paths,
+            )
+        })?;
+        WalkDir::new(&other_path)
+            .into_iter()
+            .try_for_each(|entry| {
+                handle_entry(entry, &other_path, &path, None, &mut diff.added.paths)
+            })?;
+
+        Ok(diff)
+    }
+
+    /// Calculate diff between two pools
+    pub(crate) fn diff_pools(&self, other: &Pool) -> Result<Diff, Error> {
+        let mut diff = Diff::default();
+
+        let handle_entry = |entry: Result<walkdir::DirEntry, walkdir::Error>,
+                            pool: &Pool,
+                            pool_csums: &HashMap<u64, CheckSums>,
+                            other_pool: &Pool,
+                            other_csums: &HashMap<u64, CheckSums>,
+                            changed: Option<&mut Vec<(PathBuf, u64)>>,
+                            missing: &mut Vec<(PathBuf, u64)>|
+         -> Result<(), Error> {
+            let path = entry?.into_path();
+
+            let meta = path.metadata()?;
+            if !meta.is_file() {
+                return Ok(());
+            };
+
+            let base = &pool.link_dir;
+
+            let relative = path.strip_prefix(base)?;
+            let absolute = other_pool.get_path(relative)?;
+            if absolute.exists() {
+                if let Some(changed) = changed {
+                    let csum = match pool_csums.get(&meta.st_ino()) {
+                        Some(csum) => csum,
+                        None => {
+                            eprintln!("{path:?} path not registered with pool.");
+                            changed.push((relative.to_path_buf(), 0)); // TODO add warning/error field?
+                            return Ok(());
+                        }
+                    };
+                    let other_meta = absolute.metadata()?;
+                    let other_csum = match other_csums.get(&other_meta.st_ino()) {
+                        Some(csum) => csum,
+                        None => {
+                            eprintln!("{absolute:?} path not registered with pool.");
+                            changed.push((relative.to_path_buf(), 0)); // TODO add warning/error field?
+                            return Ok(());
+                        }
+                    };
+                    if csum != other_csum {
+                        changed.push((
+                            relative.to_path_buf(),
+                            meta.st_size().abs_diff(other_meta.st_size()),
+                        ));
+                    }
+                }
+            } else {
+                missing.push((relative.to_path_buf(), meta.st_size()));
+            }
+
+            Ok(())
+        };
+
+        let other = other.lock()?;
+        let (csums, _) = self.get_inode_csum_map()?;
+        let (other_csums, _) = other.get_inode_csum_map()?;
+
+        WalkDir::new(&self.link_dir)
+            .into_iter()
+            .try_for_each(|entry| {
+                handle_entry(
+                    entry,
+                    self,
+                    &csums,
+                    &other,
+                    &other_csums,
+                    Some(&mut diff.changed.paths),
+                    &mut diff.removed.paths,
+                )
+            })?;
+        WalkDir::new(&other.link_dir)
+            .into_iter()
+            .try_for_each(|entry| {
+                handle_entry(
+                    entry,
+                    &other,
+                    &other_csums,
+                    self,
+                    &csums,
+                    None,
+                    &mut diff.added.paths,
+                )
+            })?;
+
+        Ok(diff)
+    }
+
+    pub(crate) fn list_files(&self) -> Result<Vec<(PathBuf, Metadata)>, Error> {
+        let mut file_list = Vec::new();
+        WalkDir::new(&self.link_dir)
+            .into_iter()
+            .try_for_each(|entry| -> Result<(), Error> {
+                let path = entry?.into_path();
+                let meta = path.metadata()?;
+                let relative = path.strip_prefix(&self.link_dir)?;
+
+                file_list.push((relative.to_path_buf(), meta));
+                Ok(())
+            })?;
+        Ok(file_list)
     }
 }
 
