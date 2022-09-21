@@ -12,7 +12,10 @@ use proxmox_sys::{fs::file_get_contents, linux::tty};
 use proxmox_time::epoch_to_rfc3339_utc;
 use serde_json::Value;
 
-use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment};
+use proxmox_router::cli::{
+    format_and_print_result, get_output_format, run_cli_command, CliCommand, CliCommandMap,
+    CliEnvironment, OUTPUT_FORMAT,
+};
 use proxmox_schema::{api, param_bail};
 
 use proxmox_offline_mirror::helpers::tty::{
@@ -319,11 +322,104 @@ async fn setup_offline_key(
     }
 }
 
+#[api(
+    input: {
+        properties: {
+            mountpoint: {
+                type: String,
+                description: "Path to medium mountpoint",
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        },
+    },
+)]
+/// Prints status of medium
+async fn status(mountpoint: String, param: Value) -> Result<(), Error> {
+    let output_format = get_output_format(&param);
+
+    let mountpoint = Path::new(&mountpoint);
+    if !mountpoint.exists() {
+        bail!("Medium mountpoint doesn't exist.");
+    }
+
+    let mut statefile = mountpoint.to_path_buf();
+    statefile.push(".mirror-state");
+
+    let raw = file_get_contents(&statefile)?;
+    let state: MediumState = serde_json::from_slice(&raw)?;
+
+    if output_format == "text" {
+        println!("Last sync: {}", epoch_to_rfc3339_utc(state.last_sync)?);
+        for (mirror, info) in &state.mirrors {
+            println!("\nMirror {mirror}:");
+            match medium::list_snapshots(mountpoint, mirror) {
+                Ok(snapshots) => {
+                    match (snapshots.first(), snapshots.last()) {
+                        (Some(first), Some(last)) if first == last => {
+                            println!("1 snapshot: {}", first);
+                        }
+                        (Some(first), Some(last)) => {
+                            println!("{} snapshots: '{first}..{last}'", snapshots.len());
+                        }
+                        _ => {
+                            println!("No snapshots.");
+                        }
+                    };
+                    if let Some(last) = snapshots.last() {
+                        println!(
+                            "repository config: {}",
+                            proxmox_offline_mirror::generate_repo_file_line(
+                                mountpoint, mirror, info, last
+                            )?
+                        );
+                    }
+                }
+                Err(err) => {
+                    println!("Failed to obtain snapshot list - {err}");
+                }
+            }
+        }
+    } else {
+        let mut json: serde_json::value::Map<String, Value> = serde_json::json!(state)
+            .as_object()
+            .ok_or_else(|| format_err!("Failed to serialize state file"))?
+            .to_owned();
+        for mirror in state.mirrors.keys() {
+            let mirror_json = json
+                .get_mut("mirrors")
+                .and_then(|v| v.as_object_mut())
+                .and_then(|o| o.get_mut(mirror))
+                .and_then(|v| v.as_object_mut())
+                .ok_or_else(|| format_err!("Failed to obtain JSON field for mirror {mirror}"))?;
+
+            match medium::list_snapshots(mountpoint, mirror) {
+                Ok(snapshots) => {
+                    mirror_json.insert("snapshots".to_owned(), serde_json::json!(snapshots));
+                }
+                Err(err) => {
+                    mirror_json.insert(
+                        "errors".to_owned(),
+                        serde_json::json!(format!("Failed to obtain snapshot list - {err}")),
+                    );
+                }
+            }
+        }
+        json.remove("subscriptions");
+        format_and_print_result(&json.into(), &output_format);
+    }
+
+    Ok(())
+}
+
 fn main() {
     let rpcenv = CliEnvironment::new();
 
     let cmd_def = CliCommandMap::new()
         .insert("setup", CliCommand::new(&API_METHOD_SETUP))
+        .insert("status", CliCommand::new(&API_METHOD_STATUS))
         .insert(
             "offline-key",
             CliCommand::new(&API_METHOD_SETUP_OFFLINE_KEY),
