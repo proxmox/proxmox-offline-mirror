@@ -3,7 +3,10 @@ use anyhow::{bail, format_err, Error};
 use proxmox_section_config::SectionConfigData;
 use proxmox_subscription::SubscriptionStatus;
 use serde_json::Value;
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+};
 
 use proxmox_router::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
@@ -174,6 +177,7 @@ async fn create_snapshots(
             },
             id: {
                 schema: MIRROR_ID_SCHEMA,
+                optional: true,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -183,25 +187,54 @@ async fn create_snapshots(
     },
  )]
 /// List existing repository snapshots.
-async fn list_snapshots(config: Option<String>, id: String, param: Value) -> Result<(), Error> {
+async fn list_snapshots(
+    config: Option<String>,
+    id: Option<String>,
+    param: Value,
+) -> Result<(), Error> {
     let output_format = get_output_format(&param);
     let config = config.unwrap_or_else(get_config_path);
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
-    let config: MirrorConfig = config.lookup("mirror", &id)?;
+    let res = if let Some(id) = id {
+        let config: MirrorConfig = config.lookup("mirror", &id)?;
 
-    let list = mirror::list_snapshots(&config)?;
+        let list = mirror::list_snapshots(&config)?;
+        let mut map = BTreeMap::new();
+        map.insert(config.id, list);
+        map
+    } else {
+        let mirrors: Vec<MirrorConfig> = config.convert_to_typed_array("mirror")?;
+        mirrors
+            .into_iter()
+            .fold(BTreeMap::new(), |mut map, mirror| {
+                match mirror::list_snapshots(&mirror) {
+                    Ok(list) => {
+                        map.insert(mirror.id, list);
+                    }
+                    Err(err) => eprintln!("Failed to list snapshots for {} - {err}", mirror.id),
+                }
+                map
+            })
+    };
 
     if output_format == "text" {
-        println!("Found {} snapshots:", list.len());
-        for snap in &list {
-            println!("- {snap}");
+        let mut first = true;
+        for (mirror, list) in res {
+            if first {
+                first = false;
+            } else {
+                println!();
+            }
+            println!("{mirror} ({} snapshots):", list.len());
+            for snap in &list {
+                println!("- {snap}");
+            }
         }
     } else {
-        let list = serde_json::json!(list);
-        format_and_print_result(&list, &output_format);
+        let map = serde_json::json!(res);
+        format_and_print_result(&map, &output_format);
     }
-
     Ok(())
 }
 
