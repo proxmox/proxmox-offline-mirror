@@ -15,7 +15,7 @@ use crate::{
     config::{MirrorConfig, SubscriptionKey},
     convert_repo_line,
     pool::Pool,
-    types::{Snapshot, SNAPSHOT_REGEX},
+    types::{Diff, Snapshot, SNAPSHOT_REGEX},
     FetchResult, Progress,
 };
 use proxmox_apt::{
@@ -766,4 +766,17 @@ pub fn gc(config: &MirrorConfig) -> Result<(usize, u64), Error> {
     let pool: Pool = pool(config)?;
 
     pool.lock()?.gc()
+}
+
+/// Print differences between two snapshots
+pub fn diff_snapshots(
+    config: &MirrorConfig,
+    snapshot: &Snapshot,
+    other_snapshot: &Snapshot,
+) -> Result<Diff, Error> {
+    let pool = pool(config)?;
+    pool.lock()?.diff_dirs(
+        Path::new(&format!("{snapshot}")),
+        Path::new(&format!("{other_snapshot}")),
+    )
 }

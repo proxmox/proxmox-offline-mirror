@@ -3,7 +3,7 @@ use anyhow::{bail, format_err, Error};
 use proxmox_section_config::SectionConfigData;
 use proxmox_subscription::SubscriptionStatus;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use proxmox_router::cli::{
     format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
@@ -273,6 +273,73 @@ async fn garbage_collect(config: Option<String>, id: String, _param: Value) -> R
 
     Ok(())
 }
+
+#[api(
+    input: {
+        properties: {
+            config: {
+                type: String,
+                optional: true,
+                description: "Path to mirroring config file.",
+            },
+            id: {
+                schema: MIRROR_ID_SCHEMA,
+            },
+            snapshot: {
+                type: Snapshot,
+            },
+            other_snapshot: {
+                type: Snapshot,
+            },
+            "output-format": {
+                schema: OUTPUT_FORMAT,
+                optional: true,
+            },
+        }
+    },
+ )]
+/// Print differences between two snapshots.
+async fn diff_snapshots(
+    config: Option<String>,
+    id: String,
+    snapshot: Snapshot,
+    other_snapshot: Snapshot,
+    _param: Value,
+) -> Result<(), Error> {
+    let config = config.unwrap_or_else(get_config_path);
+
+    let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
+    let config: MirrorConfig = config.lookup("mirror", &id)?;
+    let mut diff = mirror::diff_snapshots(&config, &snapshot, &other_snapshot)?;
+    let sort = |(path, _): &(PathBuf, u64), (other_path, _): &(PathBuf, u64)| path.cmp(other_path);
+    diff.added.paths.sort_unstable_by(sort);
+    diff.changed.paths.sort_unstable_by(sort);
+    diff.removed.paths.sort_unstable_by(sort);
+
+    println!("{other_snapshot} added {} file(s)", diff.added.paths.len());
+    for (path, size) in diff.added.paths {
+        println!("\t{path:?}: +{size}b");
+    }
+
+    println!(
+        "\n{other_snapshot} removed {} file(s)",
+        diff.removed.paths.len()
+    );
+    for (path, size) in diff.removed.paths {
+        println!("\t{path:?}: -{size}b");
+    }
+
+    println!(
+        "\n {} file(s) diff between {snapshot} and {other_snapshot}",
+        diff.changed.paths.len()
+    );
+    for (path, size) in diff.changed.paths {
+        println!("\t{path:?}: +-{size}b");
+    }
+
+    Ok(())
+}
+
 pub fn mirror_commands() -> CommandLineInterface {
     let snapshot_cmds = CliCommandMap::new()
         .insert(
@@ -287,6 +354,14 @@ pub fn mirror_commands() -> CommandLineInterface {
         .insert(
             "remove",
             CliCommand::new(&API_METHOD_REMOVE_SNAPSHOT).arg_param(&["id", "snapshot"]),
+        )
+        .insert(
+            "diff",
+            CliCommand::new(&API_METHOD_DIFF_SNAPSHOTS).arg_param(&[
+                "id",
+                "snapshot",
+                "other_snapshot",
+            ]),
         );
 
     let cmd_def = CliCommandMap::new()
