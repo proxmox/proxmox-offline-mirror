@@ -521,10 +521,7 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
 
                 let selected =
                     read_selection_from_tty("Select a mirror to add", &mirrors, None)?.to_string();
-                available_mirrors = available_mirrors
-                    .into_iter()
-                    .filter(|v| *v != selected)
-                    .collect();
+                available_mirrors.retain(|v| *v != selected);
                 selected_mirrors.push(selected);
             }
             Action::SelectAllMirrors => {
@@ -545,10 +542,7 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
                 let selected =
                     read_selection_from_tty("Select a mirror to remove", &mirrors, None)?
                         .to_string();
-                selected_mirrors = selected_mirrors
-                    .into_iter()
-                    .filter(|v| *v != selected)
-                    .collect();
+                selected_mirrors.retain(|v| *v != selected);
                 available_mirrors.push(selected);
             }
             Action::DeselectAllMirrors => {

@@ -86,11 +86,7 @@ pub struct MediumMirrorState {
 
 // helper to derive `MediumMirrorState`
 fn get_mirror_state(config: &MediaConfig, state: &MediumState) -> MediumMirrorState {
-    let synced_mirrors: HashSet<String> = state
-        .mirrors
-        .iter()
-        .map(|(id, _mirror)| id.clone())
-        .collect();
+    let synced_mirrors: HashSet<String> = state.mirrors.keys().cloned().collect();
     let config_mirrors: HashSet<String> = config.mirrors.iter().cloned().collect();
     let new_mirrors: HashSet<String> = config_mirrors
         .difference(&synced_mirrors)

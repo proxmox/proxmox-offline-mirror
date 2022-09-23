@@ -249,8 +249,7 @@ pub fn lock_config(path: &str) -> Result<ConfigLockGuard, Error> {
 
 /// Read config
 pub fn config(path: &str) -> Result<(SectionConfigData, [u8; 32]), Error> {
-    let content =
-        proxmox_sys::fs::file_read_optional_string(path)?.unwrap_or_else(|| "".to_string());
+    let content = proxmox_sys::fs::file_read_optional_string(path)?.unwrap_or_default();
 
     let digest = openssl::sha::sha256(content.as_bytes());
     let data = CONFIG.parse(path, &content)?;
