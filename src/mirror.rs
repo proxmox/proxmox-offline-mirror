@@ -494,6 +494,7 @@ pub fn create_snapshot(
     let prefix = Path::new(&prefix);
 
     let mut total_progress = Progress::new();
+    let mut warnings = Vec::new();
 
     let parse_release = |res: FetchResult, name: &str| -> Result<ReleaseFile, Error> {
         println!("Parsing {name}..");
@@ -624,10 +625,12 @@ pub fn create_snapshot(
                 ) {
                     Ok(res) => res,
                     Err(err) if !reference.file_type.is_package_index() => {
-                        eprintln!(
+                        let msg = format!(
                             "Failed to fetch '{:?}' type reference '{}', skipping - {err}",
                             reference.file_type, reference.path
                         );
+                        eprintln!("{msg}");
+                        warnings.push(msg);
                         failed_references.push(reference);
                         continue;
                     }
@@ -709,6 +712,7 @@ pub fn create_snapshot(
                             basename, package.file, err,
                         );
                         eprintln!("{msg}");
+                        warnings.push(msg);
                     }
                     res => {
                         res?;
@@ -735,8 +739,15 @@ pub fn create_snapshot(
         println!("\nStats: {total_progress}");
     }
 
+    if !warnings.is_empty() {
+        eprintln!("Warnings:");
+        for msg in warnings {
+            eprintln!("- {msg}");
+        }
+    }
+
     if !dry_run {
-        println!("Rotating temp. snapshot in-place: {prefix:?} -> \"{snapshot}\"");
+        println!("\nRotating temp. snapshot in-place: {prefix:?} -> \"{snapshot}\"");
         let locked = config.pool.lock()?;
         locked.rename(prefix, Path::new(&format!("{snapshot}")))?;
     }
