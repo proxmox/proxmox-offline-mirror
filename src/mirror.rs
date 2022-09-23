@@ -634,7 +634,7 @@ pub fn create_snapshot(
                         failed_references.push(reference);
                         continue;
                     }
-                    Err(err) => bail!(err),
+                    Err(err) => return Err(err),
                 };
                 fetch_progress.update(&res);
 
@@ -714,9 +714,7 @@ pub fn create_snapshot(
                         eprintln!("{msg}");
                         warnings.push(msg);
                     }
-                    res => {
-                        res?;
-                    }
+                    Err(err) => return Err(err),
                 }
             }
 
