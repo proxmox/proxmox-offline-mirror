@@ -386,6 +386,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 sync,
                 base_dir: base_dir.clone(),
                 use_subscription: None,
+                ignore_errors: false,
             });
         }
     }
@@ -399,6 +400,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         sync,
         base_dir,
         use_subscription,
+        ignore_errors: false,
     };
 
     configs.push(main_config);

@@ -41,6 +41,11 @@ use crate::types::{
         sync: {
             type: bool,
         },
+        "ignore-errors": {
+            type: bool,
+            optional: true,
+            default: false,
+        },
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, Updater)]
@@ -65,6 +70,9 @@ pub struct MirrorConfig {
     /// Use subscription key to access (required for Proxmox Enterprise repositories).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub use_subscription: Option<ProductType>,
+    /// Whether to downgrade download errors to warnings
+    #[serde(default)]
+    pub ignore_errors: bool,
 }
 
 #[api(

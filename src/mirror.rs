@@ -46,6 +46,7 @@ struct ParsedMirrorConfig {
     pub sync: bool,
     pub auth: Option<String>,
     pub client: Client,
+    pub ignore_errors: bool,
 }
 
 impl TryInto<ParsedMirrorConfig> for MirrorConfig {
@@ -74,6 +75,7 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
             sync: self.sync,
             auth: None,
             client,
+            ignore_errors: self.ignore_errors,
         })
     }
 }
@@ -691,7 +693,7 @@ pub fn create_snapshot(
                 let mut full_path = PathBuf::from(prefix);
                 full_path.push(&package.file);
 
-                let res = fetch_plain_file(
+                match fetch_plain_file(
                     &config,
                     &url,
                     &full_path,
@@ -699,8 +701,19 @@ pub fn create_snapshot(
                     &package.checksums,
                     false,
                     dry_run,
-                )?;
-                fetch_progress.update(&res);
+                ) {
+                    Ok(res) => fetch_progress.update(&res),
+                    Err(err) if config.ignore_errors => {
+                        let msg = format!(
+                            "{}: failed to fetch package '{}' - {}",
+                            basename, package.file, err,
+                        );
+                        eprintln!("{msg}");
+                    }
+                    res => {
+                        res?;
+                    }
+                }
             }
 
             if fetch_progress.file_count() % (max(total_files / 100, 1)) == 0 {

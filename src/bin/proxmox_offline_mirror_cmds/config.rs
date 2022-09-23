@@ -262,6 +262,9 @@ pub fn update_mirror(
     if let Some(verify) = update.verify {
         data.verify = verify
     }
+    if let Some(ignore_errors) = update.ignore_errors {
+        data.ignore_errors = ignore_errors
+    }
 
     config.set_data(&id, "mirror", &data)?;
     proxmox_offline_mirror::config::save_config(&config_file, &config)?;
