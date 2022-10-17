@@ -34,7 +34,8 @@ $(SUBDIRS):
 	$(MAKE) -C $@
 
 .PHONY: build
-build:
+build: $(BUILDDIR)
+$(BUILDDIR):
 	rm -rf $(BUILDDIR) $(BUILDDIR_TMP); mkdir $(BUILDDIR_TMP)
 	rm -f debian/control
 	debcargo package \
@@ -52,13 +53,13 @@ build:
 
 .PHONY: deb
 deb: $(DEB)
-$(DEB): build
+$(DEB): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc --no-pre-clean
 	lintian $(DEB) $(DOC_DEB) $(HELPER_DEB)
 
 .PHONY: dsc
 dsc: $(DSC)
-$(DSC): build
+$(DSC): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -S -us -uc -d -nc
 	lintian $(DSC)
 
