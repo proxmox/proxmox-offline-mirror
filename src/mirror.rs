@@ -144,40 +144,61 @@ fn fetch_repo_file(
 
 /// Helper to fetch InRelease (`detached` == false) or Release/Release.gpg (`detached` == true) files from repository.
 ///
-/// Verifies the contained/detached signature, stores all fetched files under `prefix`, and returns the verified raw release file data.
+/// Verifies the contained/detached signature and stores all fetched files under `prefix`.
+/// 
+/// Returns the verified raw release file data, or None if the "fetch" part itself fails.
 fn fetch_release(
     config: &ParsedMirrorConfig,
     prefix: &Path,
     detached: bool,
     dry_run: bool,
-) -> Result<FetchResult, Error> {
+) -> Result<Option<FetchResult>, Error> {
     let (name, fetched, sig) = if detached {
         println!("Fetching Release/Release.gpg files");
-        let sig = fetch_repo_file(
+        let sig = match fetch_repo_file(
             &config.client,
             &get_dist_url(&config.repository, "Release.gpg"),
             1024 * 1024,
             None,
             config.auth.as_deref(),
-        )?;
-        let mut fetched = fetch_repo_file(
+        ) {
+            Ok(res) => res,
+            Err(err) => {
+                eprintln!("Release.gpg fetch failure: {err}");
+                return Ok(None);
+            }
+        };
+
+        let mut fetched = match fetch_repo_file(
             &config.client,
             &get_dist_url(&config.repository, "Release"),
             256 * 1024 * 1024,
             None,
             config.auth.as_deref(),
-        )?;
+        ) {
+            Ok(res) => res,
+            Err(err) => {
+                eprintln!("Release fetch failure: {err}");
+                return Ok(None);
+            }
+        };
         fetched.fetched += sig.fetched;
         ("Release(.gpg)", fetched, Some(sig.data()))
     } else {
         println!("Fetching InRelease file");
-        let fetched = fetch_repo_file(
+        let fetched = match fetch_repo_file(
             &config.client,
             &get_dist_url(&config.repository, "InRelease"),
             256 * 1024 * 1024,
             None,
             config.auth.as_deref(),
-        )?;
+        ) {
+            Ok(res) => res,
+            Err(err) => {
+                eprintln!("InRelease fetch failure: {err}");
+                return Ok(None);
+            }
+        };
         ("InRelease", fetched, None)
     };
 
@@ -193,10 +214,10 @@ fn fetch_release(
     };
 
     if dry_run {
-        return Ok(FetchResult {
+        return Ok(Some(FetchResult {
             data: verified,
             fetched: fetched.fetched,
-        });
+        }));
     }
 
     let locked = &config.pool.lock()?;
@@ -230,10 +251,10 @@ fn fetch_release(
         )?;
     }
 
-    Ok(FetchResult {
+    Ok(Some(FetchResult {
         data: verified,
         fetched: fetched.fetched,
-    })
+    }))
 }
 
 /// Helper to fetch an index file referenced by a `ReleaseFile`.
@@ -510,14 +531,25 @@ pub fn create_snapshot(
         Ok(parsed)
     };
 
-    // we want both on-disk for compat reasons
-    let res = fetch_release(&config, prefix, true, dry_run)?;
-    total_progress.update(&res);
-    let _release = parse_release(res, "Release")?;
+    // we want both on-disk for compat reasons, if both are available
+    let release = fetch_release(&config, prefix, true, dry_run)?
+        .map(|res| {
+            total_progress.update(&res);
+            parse_release(res, "Release")
+        })
+        .transpose()?;
 
-    let res = fetch_release(&config, prefix, false, dry_run)?;
-    total_progress.update(&res);
-    let release = parse_release(res, "InRelease")?;
+    let in_release = fetch_release(&config, prefix, false, dry_run)?
+        .map(|res| {
+            total_progress.update(&res);
+            parse_release(res, "InRelease")
+        })
+        .transpose()?;
+
+    // at least one must be available to proceed
+    let release = release
+        .or(in_release)
+        .ok_or_else(|| format_err!("Neither Release(.gpg) nor InRelease available!"))?;
 
     let mut per_component = HashMap::new();
     let mut others = Vec::new();
