@@ -14,6 +14,38 @@ use crate::types::{
     PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
 };
 
+/// Skip Configuration
+#[api(
+    properties: {
+        "skip-sections": {
+            type: Array,
+            optional: true,
+            items: {
+                type: String,
+                description: "Section name",
+            },
+        },
+        "skip-packages": {
+            type: Array,
+            optional: true,
+            items: {
+                type: String,
+                description: "Package name",
+            },
+        },
+    },
+)]
+#[derive(Default, Serialize, Deserialize, Updater, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
+pub struct SkipConfig {
+    /// Sections which should be skipped
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skip_sections: Option<Vec<String>>,
+    /// Packages which should be skipped, supports globbing
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skip_packages: Option<Vec<String>>,
+}
+
 #[api(
     properties: {
         id: {
@@ -46,6 +78,9 @@ use crate::types::{
             optional: true,
             default: false,
         },
+        "skip": {
+            type: SkipConfig,
+        },
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, Updater)]
@@ -73,6 +108,9 @@ pub struct MirrorConfig {
     /// Whether to downgrade download errors to warnings
     #[serde(default)]
     pub ignore_errors: bool,
+    /// Skip package files using these criteria
+    #[serde(default, flatten)]
+    pub skip: SkipConfig,
 }
 
 #[api(
@@ -191,7 +229,7 @@ fn init() -> SectionConfig {
     let mut config = SectionConfig::new(&MIRROR_ID_SCHEMA);
 
     let mirror_schema = match MirrorConfig::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
+        Schema::AllOf(ref all_of_schema) => all_of_schema,
         _ => unreachable!(),
     };
     let mirror_plugin = SectionConfigPlugin::new(

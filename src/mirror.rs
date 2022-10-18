@@ -7,12 +7,13 @@ use std::{
 
 use anyhow::{bail, format_err, Error};
 use flate2::bufread::GzDecoder;
+use globset::{Glob, GlobSetBuilder};
 use nix::libc;
 use proxmox_http::{client::sync::Client, HttpClient, HttpOptions};
 use proxmox_sys::fs::file_get_contents;
 
 use crate::{
-    config::{MirrorConfig, SubscriptionKey},
+    config::{MirrorConfig, SkipConfig, SubscriptionKey},
     convert_repo_line,
     pool::Pool,
     types::{Diff, Snapshot, SNAPSHOT_REGEX},
@@ -47,6 +48,7 @@ struct ParsedMirrorConfig {
     pub auth: Option<String>,
     pub client: Client,
     pub ignore_errors: bool,
+    pub skip: SkipConfig,
 }
 
 impl TryInto<ParsedMirrorConfig> for MirrorConfig {
@@ -76,6 +78,7 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
             auth: None,
             client,
             ignore_errors: self.ignore_errors,
+            skip: self.skip,
         })
     }
 }
@@ -664,8 +667,22 @@ pub fn create_snapshot(
         }
     }
 
+    let skipped_package_globs = if let Some(skipped_packages) = &config.skip.skip_packages {
+        let mut globs = GlobSetBuilder::new();
+        for glob in skipped_packages {
+            let glob = Glob::new(glob)?;
+            globs.add(glob);
+        }
+        let globs = globs.build()?;
+        Some(globs)
+    } else {
+        None
+    };
+
     println!("\nFetching packages..");
     let mut dry_run_progress = Progress::new();
+    let mut total_skipped_count = 0usize;
+    let mut total_skipped_bytes = 0usize;
     for (basename, references) in packages_indices {
         let total_files = references.files.len();
         if total_files == 0 {
@@ -676,7 +693,37 @@ pub fn create_snapshot(
         }
 
         let mut fetch_progress = Progress::new();
+        let mut skipped_count = 0usize;
+        let mut skipped_bytes = 0usize;
         for package in references.files {
+            if let Some(ref sections) = &config.skip.skip_sections {
+                if sections.iter().any(|section| package.section == *section) {
+                    println!(
+                        "\tskipping {} - {}b (section '{}')",
+                        package.package, package.size, package.section
+                    );
+                    skipped_count += 1;
+                    skipped_bytes += package.size;
+                    continue;
+                }
+            }
+            if let Some(skipped_package_globs) = &skipped_package_globs {
+                let matches = skipped_package_globs.matches(&package.package);
+                if !matches.is_empty() {
+                    // safety, skipped_package_globs is set based on this
+                    let globs = config.skip.skip_packages.as_ref().unwrap();
+                    let matches: Vec<String> = matches.iter().map(|i| globs[*i].clone()).collect();
+                    println!(
+                        "\tskipping {} - {}b (package glob(s): {})",
+                        package.package,
+                        package.size,
+                        matches.join(", ")
+                    );
+                    skipped_count += 1;
+                    skipped_bytes += package.size;
+                    continue;
+                }
+            }
             let url = get_repo_url(&config.repository, &package.file);
 
             if dry_run {
@@ -728,6 +775,11 @@ pub fn create_snapshot(
         } else {
             total_progress += fetch_progress;
         }
+        if skipped_count > 0 {
+            total_skipped_count += skipped_count;
+            total_skipped_bytes += skipped_bytes;
+            println!("Skipped downloading {skipped_count} packages totalling {skipped_bytes}b");
+        }
     }
 
     if dry_run {
@@ -735,6 +787,11 @@ pub fn create_snapshot(
         println!("\nDry-run stats (packages, new == missing):\n{dry_run_progress}");
     } else {
         println!("\nStats: {total_progress}");
+    }
+    if total_count > 0 {
+        println!(
+            "Skipped downloading {total_skipped_count} packages totalling {total_skipped_bytes}b"
+        );
     }
 
     if !warnings.is_empty() {

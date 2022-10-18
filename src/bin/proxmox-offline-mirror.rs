@@ -13,7 +13,7 @@ use proxmox_offline_mirror::helpers::tty::{
     read_bool_from_tty, read_selection_from_tty, read_string_from_tty,
 };
 use proxmox_offline_mirror::{
-    config::{save_config, MediaConfig, MirrorConfig},
+    config::{save_config, MediaConfig, MirrorConfig, SkipConfig},
     mirror,
     types::{ProductType, MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA},
 };
@@ -387,6 +387,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 base_dir: base_dir.clone(),
                 use_subscription: None,
                 ignore_errors: false,
+                skip: SkipConfig::default(), // TODO sensible default?
             });
         }
     }
@@ -401,6 +402,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         base_dir,
         use_subscription,
         ignore_errors: false,
+        skip: SkipConfig::default(),
     };
 
     configs.push(main_config);

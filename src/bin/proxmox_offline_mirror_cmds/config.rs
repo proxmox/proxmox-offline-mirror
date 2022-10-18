@@ -266,6 +266,14 @@ pub fn update_mirror(
         data.ignore_errors = ignore_errors
     }
 
+    if let Some(skip_packages) = update.skip.skip_packages {
+        data.skip.skip_packages = Some(skip_packages);
+    }
+
+    if let Some(skip_sections) = update.skip.skip_sections {
+        data.skip.skip_sections = Some(skip_sections);
+    }
+
     config.set_data(&id, "mirror", &data)?;
     proxmox_offline_mirror::config::save_config(&config_file, &config)?;
 
