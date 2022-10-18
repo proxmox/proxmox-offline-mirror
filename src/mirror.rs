@@ -22,6 +22,7 @@ use crate::{
 use proxmox_apt::{
     deb822::{
         CheckSums, CompressionType, FileReference, FileReferenceType, PackagesFile, ReleaseFile,
+        SourcesFile,
     },
     repositories::{APTRepository, APTRepositoryPackageType},
 };
@@ -598,10 +599,15 @@ pub fn create_snapshot(
 
     let mut packages_size = 0_usize;
     let mut packages_indices = HashMap::new();
+
+    let mut source_packages_indices = HashMap::new();
+
     let mut failed_references = Vec::new();
     for (component, references) in per_component {
         println!("\nFetching indices for component '{component}'");
         let mut component_deb_size = 0;
+        let mut component_dsc_size = 0;
+
         let mut fetch_progress = Progress::new();
 
         for basename in references {
@@ -642,21 +648,49 @@ pub fn create_snapshot(
                 fetch_progress.update(&res);
 
                 if package_index_data.is_none() && reference.file_type.is_package_index() {
-                    package_index_data = Some(res.data());
+                    package_index_data = Some((&reference.file_type, res.data()));
                 }
             }
-            if let Some(data) = package_index_data {
-                let packages: PackagesFile = data[..].try_into()?;
-                let size: usize = packages.files.iter().map(|p| p.size).sum();
-                println!("\t{} packages totalling {size}", packages.files.len());
-                component_deb_size += size;
+            if let Some((reference_type, data)) = package_index_data {
+                match reference_type {
+                    FileReferenceType::Packages(_, _) => {
+                        let packages: PackagesFile = data[..].try_into()?;
+                        let size: usize = packages.files.iter().map(|p| p.size).sum();
+                        println!("\t{} packages totalling {size}", packages.files.len());
+                        component_deb_size += size;
 
-                packages_indices.entry(basename).or_insert(packages);
+                        packages_indices.entry(basename).or_insert(packages);
+                    }
+                    FileReferenceType::Sources(_) => {
+                        let source_packages: SourcesFile = data[..].try_into()?;
+                        let size: usize = source_packages
+                            .source_packages
+                            .iter()
+                            .map(|s| s.size())
+                            .sum();
+                        println!(
+                            "\t{} source packages totalling {size}",
+                            source_packages.source_packages.len()
+                        );
+                        component_dsc_size += size;
+                        source_packages_indices
+                            .entry(basename)
+                            .or_insert(source_packages);
+                    }
+                    unknown => {
+                        eprintln!("Unknown package index '{unknown:?}', skipping processing..")
+                    }
+                }
             }
             println!("Progress: {fetch_progress}");
         }
+
         println!("Total deb size for component: {component_deb_size}");
         packages_size += component_deb_size;
+
+        println!("Total dsc size for component: {component_dsc_size}");
+        packages_size += component_dsc_size;
+
         total_progress += fetch_progress;
     }
     println!("Total deb size: {packages_size}");
@@ -767,6 +801,114 @@ pub fn create_snapshot(
 
             if fetch_progress.file_count() % (max(total_files / 100, 1)) == 0 {
                 println!("\tProgress: {fetch_progress}");
+            }
+        }
+        println!("\tProgress: {fetch_progress}");
+        if dry_run {
+            dry_run_progress += fetch_progress;
+        } else {
+            total_progress += fetch_progress;
+        }
+        if skipped_count > 0 {
+            total_skipped_count += skipped_count;
+            total_skipped_bytes += skipped_bytes;
+            println!("Skipped downloading {skipped_count} packages totalling {skipped_bytes}b");
+        }
+    }
+
+    for (basename, references) in source_packages_indices {
+        let total_source_packages = references.source_packages.len();
+        if total_source_packages == 0 {
+            println!("\n{basename} - no files, skipping.");
+            continue;
+        } else {
+            println!("\n{basename} - {total_source_packages} total source package(s)");
+        }
+
+        let mut fetch_progress = Progress::new();
+        let mut skipped_count = 0usize;
+        let mut skipped_bytes = 0usize;
+        for package in references.source_packages {
+            if let Some(ref sections) = &config.skip.skip_sections {
+                if sections
+                    .iter()
+                    .any(|section| package.section.as_ref() == Some(section))
+                {
+                    println!(
+                        "\tskipping {} - {}b (section '{}')",
+                        package.package,
+                        package.size(),
+                        package.section.as_ref().unwrap(),
+                    );
+                    skipped_count += 1;
+                    skipped_bytes += package.size();
+                    continue;
+                }
+            }
+            if let Some(skipped_package_globs) = &skipped_package_globs {
+                let matches = skipped_package_globs.matches(&package.package);
+                if !matches.is_empty() {
+                    // safety, skipped_package_globs is set based on this
+                    let globs = config.skip.skip_packages.as_ref().unwrap();
+                    let matches: Vec<String> = matches.iter().map(|i| globs[*i].clone()).collect();
+                    println!(
+                        "\tskipping {} - {}b (package glob(s): {})",
+                        package.package,
+                        package.size(),
+                        matches.join(", ")
+                    );
+                    skipped_count += 1;
+                    skipped_bytes += package.size();
+                    continue;
+                }
+            }
+
+            for file_reference in package.files.values() {
+                let path = format!("{}/{}", package.directory, file_reference.file);
+                let url = get_repo_url(&config.repository, &path);
+
+                if dry_run {
+                    if config.pool.contains(&file_reference.checksums) {
+                        fetch_progress.update(&FetchResult {
+                            data: vec![],
+                            fetched: 0,
+                        });
+                    } else {
+                        println!("\t(dry-run) GET missing '{url}' ({}b)", file_reference.size);
+                        fetch_progress.update(&FetchResult {
+                            data: vec![],
+                            fetched: file_reference.size,
+                        });
+                    }
+                } else {
+                    let mut full_path = PathBuf::from(prefix);
+                    full_path.push(&path);
+
+                    match fetch_plain_file(
+                        &config,
+                        &url,
+                        &full_path,
+                        file_reference.size,
+                        &file_reference.checksums,
+                        false,
+                        dry_run,
+                    ) {
+                        Ok(res) => fetch_progress.update(&res),
+                        Err(err) if config.ignore_errors => {
+                            let msg = format!(
+                                "{}: failed to fetch package '{}' - {}",
+                                basename, file_reference.file, err,
+                            );
+                            eprintln!("{msg}");
+                            warnings.push(msg);
+                        }
+                        Err(err) => return Err(err),
+                    }
+                }
+
+                if fetch_progress.file_count() % (max(total_source_packages / 100, 1)) == 0 {
+                    println!("\tProgress: {fetch_progress}");
+                }
             }
         }
         println!("\tProgress: {fetch_progress}");
