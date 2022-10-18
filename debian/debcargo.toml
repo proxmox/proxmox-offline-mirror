@@ -9,6 +9,9 @@ build_depends = [
  "latexmk",
  "fonts-open-sans",
  "fonts-lato",
+ "python3-sphinx",
+ "texlive-fonts-recommended",
+ "texlive-xetex",
 ]
 
 [packages.bin]

@@ -38,7 +38,10 @@ Build-Depends: debhelper (>= 12),
  librust-xz2-0.1+default-dev,
  latexmk,
  fonts-open-sans,
- fonts-lato
+ fonts-lato,
+ python3-sphinx,
+ texlive-fonts-recommended,
+ texlive-xetex
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.5.1
 Vcs-Git: git://git.proxmox.com/git/proxmox-offline-mirror.git
