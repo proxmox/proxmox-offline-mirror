@@ -96,7 +96,8 @@ impl Pool {
         }
     }
 
-    /// Returns the file contents for a given checksum, optionally `verify`ing whether the on-disk data matches the checksum.
+    /// Returns the file contents for a given checksum, optionally `verify`ing whether the on-disk
+    /// data matches the checksum.
     pub(crate) fn get_contents(
         &self,
         checksums: &CheckSums,
@@ -115,7 +116,8 @@ impl Pool {
         Ok(data)
     }
 
-    // Helper to return all possible checksum file paths for a given checksum. Checksums considered insecure will be ignored.
+    // Helper to return all possible checksum file paths for a given checksum. Checksums considered
+    // insecure will be ignored.
     fn get_checksum_paths(&self, checksums: &CheckSums) -> Result<Vec<PathBuf>, Error> {
         if !checksums.is_secure() {
             bail!("pool cannot operate on files lacking secure checksum!");
@@ -383,7 +385,8 @@ impl PoolLockGuard<'_> {
         Ok(())
     }
 
-    /// Links previously added file into `path` (relative to `link_dir`). Missing parent directories will be created automatically.
+    /// Links previously added file into `path` (relative to `link_dir`). Missing parent
+    /// directories will be created automatically.
     pub(crate) fn link_file(&self, checksums: &CheckSums, path: &Path) -> Result<bool, Error> {
         let path = self.pool.get_path(path)?;
         if !self.pool.path_in_link_dir(&path) {
@@ -408,7 +411,8 @@ impl PoolLockGuard<'_> {
         link_file_do(source, &path)
     }
 
-    /// Unlink a previously linked file at `path` (absolute, must be below `link_dir`). Optionally remove any parent directories that became empty.
+    /// Unlink a previously linked file at `path` (absolute, must be below `link_dir`). Optionally
+    /// remove any parent directories that became empty.
     pub(crate) fn unlink_file(
         &self,
         mut path: &Path,

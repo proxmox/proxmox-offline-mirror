@@ -142,8 +142,9 @@ fn fetch_repo_file(
     })
 }
 
-/// Helper to fetch InRelease (`detached` == false) or Release/Release.gpg (`detached` == true) files from repository.
+/// Helper to fetch InRelease or Release/Release.gpg files from repository.
 ///
+/// Set `detached` == false to fetch InRelease or to `detached` == true for Release/Release.gpg.
 /// Verifies the contained/detached signature and stores all fetched files under `prefix`.
 ///
 /// Returns the verified raw release file data, or None if the "fetch" part itself fails.
@@ -259,8 +260,11 @@ fn fetch_release(
 
 /// Helper to fetch an index file referenced by a `ReleaseFile`.
 ///
-/// Since these usually come in compressed and uncompressed form, with the latter often not actually existing in the source repository as file, this fetches and if necessary decompresses to obtain a copy of the uncompressed data.
-/// Will skip fetching if both references are already available with the expected checksum in the pool, in which case they will just be re-linked under the new path.
+/// Since these usually come in compressed and uncompressed form, with the latter often not
+/// actually existing in the source repository as file, this fetches and if necessary decompresses
+/// to obtain a copy of the uncompressed data.
+/// Will skip fetching if both references are already available with the expected checksum in the
+/// pool, in which case they will just be re-linked under the new path.
 ///
 /// Returns the uncompressed data.
 fn fetch_index_file(
@@ -375,9 +379,11 @@ fn fetch_index_file(
 
 /// Helper to fetch arbitrary files like binary packages.
 ///
-/// Will skip fetching if matching file already exists locally, in which case it will just be re-linked under the new path.
+/// Will skip fetching if matching file already exists locally, in which case it will just be
+/// re-linked under the new path.
 ///
-/// If need_data is false and the mirror config is set to skip verification, reading the file's content will be skipped as well if fetching was skipped.
+/// If need_data is false and the mirror config is set to skip verification, reading the file's
+/// content will be skipped as well if fetching was skipped.
 fn fetch_plain_file(
     config: &ParsedMirrorConfig,
     url: &str,
@@ -734,7 +740,10 @@ fn fetch_source_packages(
 /// - Fetch referenced indices according to config
 /// - Fetch binary packages referenced by package indices
 ///
-/// Files will be linked in a temporary directory and only renamed to the final, valid snapshot directory at the end. In case of error, leftover `XXX.tmp` directories at the top level of `base_dir` can be safely removed once the next snapshot was successfully created, as they only contain hardlinks.
+/// Files will be linked in a temporary directory and only renamed to the final, valid snapshot
+/// directory at the end. In case of error, leftover `XXX.tmp` directories at the top level of
+/// `base_dir` can be safely removed once the next snapshot was successfully created, as they only
+/// contain hardlinks.
 pub fn create_snapshot(
     config: MirrorConfig,
     snapshot: &Snapshot,
@@ -908,7 +917,8 @@ pub fn create_snapshot(
             let mut package_index_data = None;
 
             for reference in files {
-                // if both compressed and uncompressed are referenced, the uncompressed file may not exist on the server
+                // if both compressed and uncompressed are referenced, the uncompressed file may
+                // not exist on the server
                 if Some(reference) == uncompressed_ref && files.len() > 1 {
                     continue;
                 }
@@ -1038,7 +1048,8 @@ pub fn create_snapshot(
     Ok(())
 }
 
-/// Remove a snapshot by removing the corresponding snapshot directory. To actually free up space, a garbage collection needs to be run afterwards.
+/// Remove a snapshot by removing the corresponding snapshot directory. To actually free up space,
+/// a garbage collection needs to be run afterwards.
 pub fn remove_snapshot(config: &MirrorConfig, snapshot: &Snapshot) -> Result<(), Error> {
     let pool: Pool = pool(config)?;
     let path = pool.get_path(Path::new(&snapshot.to_string()))?;
