@@ -504,6 +504,7 @@ fn convert_to_globset(config: &ParsedMirrorConfig) -> Result<Option<GlobSet>, Er
 
 fn fetch_binary_packages(
     config: &ParsedMirrorConfig,
+    component: &str,
     packages_indices: HashMap<&String, PackagesFile>,
     dry_run: bool,
     prefix: &Path,
@@ -523,9 +524,13 @@ fn fetch_binary_packages(
         let mut fetch_progress = Progress::new();
         let mut skip_count = 0usize;
         let mut skip_bytes = 0usize;
+
         for package in references.files {
             if let Some(ref sections) = &config.skip.skip_sections {
-                if sections.iter().any(|section| package.section == *section) {
+                if sections.iter().any(|section| {
+                    package.section == *section
+                        || package.section == format!("{component}/{section}")
+                }) {
                     println!(
                         "\tskipping {} - {}b (section '{}')",
                         package.package, package.size, package.section
@@ -615,6 +620,7 @@ fn fetch_binary_packages(
 
 fn fetch_source_packages(
     config: &ParsedMirrorConfig,
+    component: &str,
     source_packages_indices: HashMap<&String, SourcesFile>,
     dry_run: bool,
     prefix: &Path,
@@ -636,10 +642,10 @@ fn fetch_source_packages(
         let mut skip_bytes = 0usize;
         for package in references.source_packages {
             if let Some(ref sections) = &config.skip.skip_sections {
-                if sections
-                    .iter()
-                    .any(|section| package.section.as_ref() == Some(section))
-                {
+                if sections.iter().any(|section| {
+                    package.section.as_ref() == Some(section)
+                        || package.section == Some(format!("{component}/{section}"))
+                }) {
                     println!(
                         "\tskipping {} - {}b (section '{}')",
                         package.package,
@@ -897,9 +903,13 @@ pub fn create_snapshot(
     println!();
 
     let mut packages_size = 0_usize;
-    let mut packages_indices = HashMap::new();
-
-    let mut source_packages_indices = HashMap::new();
+    let mut per_component_indices: HashMap<
+        String,
+        (
+            HashMap<&String, PackagesFile>,
+            HashMap<&String, SourcesFile>,
+        ),
+    > = HashMap::new();
 
     let mut failed_references = Vec::new();
     for (component, references) in per_component {
@@ -908,6 +918,9 @@ pub fn create_snapshot(
         let mut component_dsc_size = 0;
 
         let mut fetch_progress = Progress::new();
+
+        let (packages_indices, source_packages_indices) =
+            per_component_indices.entry(component.clone()).or_default();
 
         for basename in references {
             println!("\tFetching '{basename}'..");
@@ -1001,17 +1014,26 @@ pub fn create_snapshot(
         }
     }
 
-    println!("\nFetching packages..");
+    for (component, (packages_indices, source_packages_indices)) in per_component_indices {
+        println!("\nFetching {component} packages..");
+        fetch_binary_packages(
+            &config,
+            &component,
+            packages_indices,
+            dry_run,
+            prefix,
+            &mut progress,
+        )?;
 
-    fetch_binary_packages(&config, packages_indices, dry_run, prefix, &mut progress)?;
-
-    fetch_source_packages(
-        &config,
-        source_packages_indices,
-        dry_run,
-        prefix,
-        &mut progress,
-    )?;
+        fetch_source_packages(
+            &config,
+            &component,
+            source_packages_indices,
+            dry_run,
+            prefix,
+            &mut progress,
+        )?;
+    }
 
     if dry_run {
         println!(
