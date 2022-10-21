@@ -99,7 +99,7 @@ fn derive_debian_repo(
 ) -> Result<(String, String, String, SkipConfig), Error> {
     println!("Configure filters for Debian mirror {release} / {variant}:");
     let skip_sections = match read_string_from_tty(
-        "\tEnter list of package sections to be skipped ('-' for None):",
+        "\tEnter list of package sections to be skipped ('-' for None)",
         Some("debug,games"),
     )?
     .as_str()
@@ -112,7 +112,7 @@ fn derive_debian_repo(
         ),
     };
     let skip_packages = match read_string_from_tty(
-        "\tEnter list of package names/name globs to be skipped ('-' for None):",
+        "\tEnter list of package names/name globs to be skipped ('-' for None)",
         None,
     )?
     .as_str()
