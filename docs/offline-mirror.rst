@@ -52,6 +52,34 @@ To create the first (and subsequent) snapshots, the following command can be use
   snapshot can take both time and require significant disk space. This is especially true for the
   initial snapshot, as subsequent ones will re-use unchanged package files and indices.
 
+Reducing Mirror Scope
+---------------------
+
+There are different mechanisms for reducing a mirror's scope (and correspondingly, the amount of
+traffic and disk space required to keep it synced):
+
+- architecture filters
+- components (as part of the `repository` specification)
+- package name and section filters
+
+By default, only packages for the architectures `all` (see note above) and `amd64` are mirrored.
+
+Optionally, it's possible to setup filters for downloaded binary or source packages via the
+`--skip-packages` and `--skip-sections` options. The package filters support globbing, for example
+`linux-image-*` will skip all packages with a name starting with `linux-image-`. The section
+filters match the full value, or the value prefixed with the package's component (for example,
+`games` will match both the section `games`, as well as `non-free/games` in a packages index of the
+`non-free` component).
+
+Some examples for packages and section filters:
+
+- `--skip-packages 'linux-image-*'` - filter Debian linux kernel image packages
+- `--skip-sections 'games'` - filter sections containing game packages
+- `--skip-sections 'debug'` - filter sections containing debug information
+
+Please refer to https://packages.debian.org/bullseye/ for a list of Debian archive sections and
+their contents.
+
 Space Management
 ----------------
 
