@@ -903,6 +903,7 @@ pub fn create_snapshot(
     println!();
 
     let mut packages_size = 0_usize;
+    #[allow(clippy::type_complexity)]
     let mut per_component_indices: HashMap<
         String,
         (
