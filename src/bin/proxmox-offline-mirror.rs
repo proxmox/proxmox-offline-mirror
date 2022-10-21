@@ -98,13 +98,31 @@ fn derive_debian_repo(
     components: &str,
 ) -> Result<(String, String, String, SkipConfig), Error> {
     println!("Configure filters for Debian mirror {release} / {variant}:");
-    let skip_sections = match read_string_from_tty("\tEnter list of package sections to be skipped ('-' for None):", Some("debug,games"))?.as_str() {
+    let skip_sections = match read_string_from_tty(
+        "\tEnter list of package sections to be skipped ('-' for None):",
+        Some("debug,games"),
+    )?
+    .as_str()
+    {
         "-" => None,
-        list => Some(list.split(',').map(|v| v.trim().to_owned()).collect::<Vec<String>>()),
+        list => Some(
+            list.split(',')
+                .map(|v| v.trim().to_owned())
+                .collect::<Vec<String>>(),
+        ),
     };
-    let skip_packages = match read_string_from_tty("\tEnter list of package names/name globs to be skipped ('-' for None):", None)?.as_str() {
+    let skip_packages = match read_string_from_tty(
+        "\tEnter list of package names/name globs to be skipped ('-' for None):",
+        None,
+    )?
+    .as_str()
+    {
         "-" => None,
-        list => Some(list.split(',').map(|v| v.trim().to_owned()).collect::<Vec<String>>()),
+        list => Some(
+            list.split(',')
+                .map(|v| v.trim().to_owned())
+                .collect::<Vec<String>>(),
+        ),
     };
     let filters = SkipConfig {
         skip_packages,
