@@ -96,7 +96,20 @@ fn derive_debian_repo(
     release: &Release,
     variant: &DebianVariant,
     components: &str,
-) -> (String, String, String) {
+) -> Result<(String, String, String, SkipConfig), Error> {
+    println!("Configure filters for Debian mirror {release} / {variant}:");
+    let skip_sections = match read_string_from_tty("\tEnter list of package sections to be skipped ('-' for None):", Some("debug,games"))?.as_str() {
+        "-" => None,
+        list => Some(list.split(',').map(|v| v.trim().to_owned()).collect::<Vec<String>>()),
+    };
+    let skip_packages = match read_string_from_tty("\tEnter list of package names/name globs to be skipped ('-' for None):", None)?.as_str() {
+        "-" => None,
+        list => Some(list.split(',').map(|v| v.trim().to_owned()).collect::<Vec<String>>()),
+    };
+    let filters = SkipConfig {
+        skip_packages,
+        skip_sections,
+    };
     let url = match (release, variant) {
         (Release::Bullseye, DebianVariant::Main) => "http://deb.debian.org/debian bullseye",
         (Release::Bullseye, DebianVariant::Security) => {
@@ -138,14 +151,14 @@ fn derive_debian_repo(
 
     let suggested_id = format!("debian_{release}_{variant}");
 
-    (url, key.to_string(), suggested_id)
+    Ok((url, key.to_string(), suggested_id, filters))
 }
 
 fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Error> {
     let mut use_subscription = None;
     let mut extra_repos = Vec::new();
 
-    let (repository, key_path, architectures, suggested_id) = if read_bool_from_tty(
+    let (repository, key_path, architectures, suggested_id, skip) = if read_bool_from_tty(
         "Guided Setup",
         Some(true),
     )? {
@@ -163,7 +176,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
         let mut add_debian_repo = false;
 
-        let (url, key_path, suggested_id) = match dist {
+        let (url, key_path, suggested_id, skip) = match dist {
             Distro::Debian => {
                 let variants = &[
                     (DebianVariant::Main, "Main repository"),
@@ -179,7 +192,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Some("main contrib non-free"),
                 )?;
 
-                derive_debian_repo(release, variant, &components)
+                derive_debian_repo(release, variant, &components)?
             }
             Distro::PveCeph => {
                 enum CephRelease {
@@ -231,7 +244,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 );
                 let suggested_id = format!("ceph_{ceph_release}_{release}");
 
-                (url, key.to_string(), suggested_id)
+                (url, key.to_string(), suggested_id, SkipConfig::default())
             }
             product => {
                 let variants = &[
@@ -272,7 +285,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Some(true),
                 )?;
 
-                (url, key.to_string(), suggested_id)
+                (url, key.to_string(), suggested_id, SkipConfig::default())
             }
         };
 
@@ -283,23 +296,24 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 release,
                 &DebianVariant::Main,
                 "main contrib",
-            ));
+            )?);
             extra_repos.push(derive_debian_repo(
                 release,
                 &DebianVariant::Updates,
                 "main contrib",
-            ));
+            )?);
             extra_repos.push(derive_debian_repo(
                 release,
                 &DebianVariant::Security,
                 "main contrib",
-            ));
+            )?);
         }
         (
             format!("deb {url}"),
             key_path,
             architectures,
             Some(suggested_id),
+            skip,
         )
     } else {
         let repo = read_string_from_tty("Enter repository line in sources.list format", None)?;
@@ -329,7 +343,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         )?
         .clone();
 
-        (repo, key_path, architectures, None)
+        (repo, key_path, architectures, None, SkipConfig::default())
     };
 
     if !Path::new(&key_path).exists() {
@@ -371,7 +385,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
     let mut configs = Vec::with_capacity(extra_repos.len() + 1);
 
-    for (url, key_path, suggested_id) in extra_repos {
+    for (url, key_path, suggested_id, skip) in extra_repos {
         if config.sections.contains_key(&suggested_id) {
             eprintln!("config section '{suggested_id}' already exists, skipping..");
         } else {
@@ -387,7 +401,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 base_dir: base_dir.clone(),
                 use_subscription: None,
                 ignore_errors: false,
-                skip: SkipConfig::default(), // TODO sensible default?
+                skip,
             });
         }
     }
@@ -402,7 +416,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         base_dir,
         use_subscription,
         ignore_errors: false,
-        skip: SkipConfig::default(),
+        skip,
     };
 
     configs.push(main_config);
