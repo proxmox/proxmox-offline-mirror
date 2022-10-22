@@ -218,6 +218,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Nautilus,
                     Octopus,
                     Pacific,
+                    Quincy,
                 }
 
                 let releases = match release {
@@ -225,6 +226,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                         vec![
                             (CephRelease::Octopus, "Octopus (15.x)"),
                             (CephRelease::Pacific, "Pacific (16.x)"),
+                            (CephRelease::Quincy, "Quincy (17.x)"),
                         ]
                     }
                     Release::Buster => {
@@ -255,6 +257,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     CephRelease::Nautilus => "nautilus",
                     CephRelease::Octopus => "octopus",
                     CephRelease::Pacific => "pacific",
+                    CephRelease::Quincy => "quincy",
                 };
 
                 let url = format!(
