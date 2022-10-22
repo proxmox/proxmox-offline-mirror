@@ -15,7 +15,7 @@ Build-Depends: debhelper (>= 12),
  librust-lazy-static-1+default-dev (>= 1.4-~~),
  librust-nix-0.24+default-dev,
  librust-openssl-0.10+default-dev,
- librust-proxmox-apt-0.9+default-dev (>= 0.9.2-~~),
+ librust-proxmox-apt-0.9+default-dev (>= 0.9.3-~~),
  librust-proxmox-async-0.4+default-dev,
  librust-proxmox-http-0.7+client-sync-dev,
  librust-proxmox-http-0.7+client-trait-dev,
@@ -63,7 +63,7 @@ Depends:
  librust-lazy-static-1+default-dev (>= 1.4-~~),
  librust-nix-0.24+default-dev,
  librust-openssl-0.10+default-dev,
- librust-proxmox-apt-0.9+default-dev (>= 0.9.2-~~),
+ librust-proxmox-apt-0.9+default-dev (>= 0.9.3-~~),
  librust-proxmox-async-0.4+default-dev,
  librust-proxmox-http-0.7+client-sync-dev,
  librust-proxmox-http-0.7+client-trait-dev,
@@ -89,10 +89,10 @@ Provides:
  librust-proxmox-offline-mirror+default-dev (= ${binary:Version}),
  librust-proxmox-offline-mirror-0-dev (= ${binary:Version}),
  librust-proxmox-offline-mirror-0+default-dev (= ${binary:Version}),
- librust-proxmox-offline-mirror-0.4-dev (= ${binary:Version}),
- librust-proxmox-offline-mirror-0.4+default-dev (= ${binary:Version}),
- librust-proxmox-offline-mirror-0.4.0-dev (= ${binary:Version}),
- librust-proxmox-offline-mirror-0.4.0+default-dev (= ${binary:Version})
+ librust-proxmox-offline-mirror-0.5-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.5+default-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.5.0-dev (= ${binary:Version}),
+ librust-proxmox-offline-mirror-0.5.0+default-dev (= ${binary:Version})
 Description: Proxmox offline repository mirror and subscription key manager - Rust source code
  This package contains the source for the Rust proxmox-offline-mirror crate,
  packaged by debcargo for use with cargo and dh-cargo.

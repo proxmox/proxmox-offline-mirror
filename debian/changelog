@@ -1,3 +1,40 @@
+rust-proxmox-offline-mirror (0.5.0-1) stable; urgency=medium
+
+  * fix #4259: mirror: add 'ignore-errors' option to make fetching errors from
+    (technically) broken repositories non-fatal.
+
+  * mirror: collect and summarize warnings to ensure that they ain't missed in
+    the rather verbose output
+
+  * pool: add a 'diff' command for snapshots and for mediums, to ease
+    comparing the actual changes
+
+  * mirror snapshot list: make the <id> parameter optional so that one can
+    quickly list all snapshots from all mirrors.
+
+  * mirror: add option to configure filtering one or more packages via GLOBs
+    and also specific Debian packaging sections like 'games', 'kernel' or
+    'debug' to reduce the pool size
+
+  * mirror: implement source packages mirroring
+
+  * fix #4264: only require either Release or InRelease as even though that
+    InRelease is strictly speaking required, some repos (especially older
+    ones) may not have it.
+
+  * guided mirror setup: propose to filter out the 'games' and 'debug'
+    sections by default, which, for example, reduces a mirror of PVE + Debian
+    bullseye by about 27% (105GB->77GB).
+
+  * docs: mention the new section and package filters
+
+  * helper: add status command for showing information that is stored on the
+    medium itself
+
+  * guided setup: add Quincy as supported release for bullseye
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 22 Oct 2022 17:01:07 +0200
+
 rust-proxmox-offline-mirror (0.4.0-1) stable; urgency=medium
 
   * docs: add minimal sample nginx config
