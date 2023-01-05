@@ -44,9 +44,10 @@ Build-Depends: debhelper (>= 12),
  texlive-fonts-recommended,
  texlive-xetex
 Maintainer: Proxmox Support Team <support@proxmox.com>
-Standards-Version: 4.5.1
+Standards-Version: 4.6.1
 Vcs-Git: git://git.proxmox.com/git/proxmox-offline-mirror.git
 Vcs-Browser: https://git.proxmox.com/?p=proxmox-offline-mirror.git
+X-Cargo-Crate: proxmox-offline-mirror
 Rules-Requires-Root: no
 
 Package: librust-proxmox-offline-mirror-dev
