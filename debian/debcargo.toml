@@ -6,10 +6,12 @@ maintainer = "Proxmox Support Team <support@proxmox.com>"
 vcs_git = "git://git.proxmox.com/git/proxmox-offline-mirror.git"
 vcs_browser = "https://git.proxmox.com/?p=proxmox-offline-mirror.git"
 build_depends = [
- "latexmk",
- "fonts-open-sans",
+ "bash-completion",
  "fonts-lato",
+ "fonts-open-sans",
+ "latexmk",
  "python3-sphinx",
+ "rsync",
  "texlive-fonts-recommended",
  "texlive-xetex",
 ]
