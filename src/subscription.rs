@@ -1,7 +1,7 @@
 use anyhow::{bail, format_err, Error};
 
 use proxmox_http::client::sync::Client;
-use proxmox_http::{HttpClient, HttpOptions};
+use proxmox_http::{HttpClient, HttpOptions, ProxyConfig};
 use proxmox_subscription::SubscriptionStatus;
 use proxmox_subscription::{
     sign::{SignRequest, SignedResponse},
@@ -15,12 +15,13 @@ const PRODUCT_URL: &str = "-";
 // TODO add version?
 const USER_AGENT: &str = "proxmox-offline-mirror";
 
-fn client() -> Client {
+fn client() -> Result<Client, Error> {
     let options = HttpOptions {
         user_agent: Some(USER_AGENT.to_string()),
+        proxy_config: ProxyConfig::from_proxy_env()?,
         ..Default::default()
     };
-    Client::new(options)
+    Ok(Client::new(options))
 }
 
 pub fn extract_mirror_key(keys: &[SubscriptionKey]) -> Result<SubscriptionKey, Error> {
@@ -61,7 +62,7 @@ pub fn refresh_offline_keys(
             key.key.clone(),
             key.server_id.clone(),
             PRODUCT_URL.to_string(),
-            client(),
+            client()?,
         ) {
             errors = true;
             eprintln!("Failed to refresh subscription key {} - {}", key.key, err);
@@ -74,7 +75,7 @@ pub fn refresh_offline_keys(
         mirror_key: mirror_key.into(),
         blobs: offline_keys.into_iter().map(|k| k.into()).collect(),
     };
-    let res = client().post(
+    let res = client()?.post(
         "https://shop.proxmox.com/proxmox-subscription/sign",
         Some(serde_json::to_vec(&request)?.as_slice()),
         Some("text/json"),
@@ -98,6 +99,6 @@ pub fn refresh_mirror_key(mirror_key: SubscriptionKey) -> Result<SubscriptionInf
         mirror_key.key,
         mirror_key.server_id,
         PRODUCT_URL.to_string(),
-        client(),
+        client()?,
     )
 }

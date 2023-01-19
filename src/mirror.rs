@@ -9,7 +9,7 @@ use anyhow::{bail, format_err, Error};
 use flate2::bufread::GzDecoder;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use nix::libc;
-use proxmox_http::{client::sync::Client, HttpClient, HttpOptions};
+use proxmox_http::{client::sync::Client, HttpClient, HttpOptions, ProxyConfig};
 use proxmox_sys::fs::file_get_contents;
 
 use crate::{
@@ -64,6 +64,7 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
 
         let options = HttpOptions {
             user_agent: Some("proxmox-offline-mirror 0.1".to_string()),
+            proxy_config: ProxyConfig::from_proxy_env()?,
             ..Default::default()
         }; // TODO actually read version ;)
 
