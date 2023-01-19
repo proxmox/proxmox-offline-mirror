@@ -4,6 +4,9 @@ Command Syntax
 ``proxmox-offline-mirror``
 --------------------------
 
+For supported environment variables please refer to
+:ref:`env_vars` .
+
 .. include:: proxmox-offline-mirror/synopsis.rst
 
 

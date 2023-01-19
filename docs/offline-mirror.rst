@@ -86,3 +86,27 @@ Space Management
 After removing a snapshot with ``proxmox-offline-mirror mirror snapshot remove``, a
 ``proxmox-offline-mirror mirror gc`` invocation is needed to trigger the garbage collection to
 actually remove any contents from the underlying hard link pool that are no longer needed.
+
+.. _env_vars :
+
+Environment Variables
+---------------------
+
+
+``ALL_PROXY``
+  When set, the client uses the specified HTTP proxy for all connections to the
+  backup server. Currently only HTTP proxies are supported. Valid proxy
+  configurations have the following format:
+  `[http://][user:password@]<host>[:port]`. Default `port` is 1080, if not
+  otherwise specified.
+
+.. Note:: The proxy server must allow ``HTTP CONNECT`` for all ports that are used
+   to connect to mirrors (e.g. port 80 for HTTP mirrors). For Squid,
+   the appropriate configuration parameter is ``http_access allow CONNECT <acl>``
+   (http://www.squid-cache.org/Doc/config/http_access/). By default, Squid only
+   allows ``HTTP CONNECT`` for port 443.
+
+
+.. Note:: Passwords must be valid UTF-8 and may not contain newlines. For your
+   convenience, Proxmox Backup Server only uses the first line as password, so
+   you can add arbitrary comments after the first newline.
