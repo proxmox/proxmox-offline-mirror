@@ -1,3 +1,12 @@
+rust-proxmox-offline-mirror (0.5.1-1) stable; urgency=medium
+
+  * fix #4445: add proxy support by honoring ALL_PROXY environment variable
+    for mirroring and subscription management
+
+  * docs: document `ALL_PROXY` environment variable
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 07 Feb 2023 15:35:17 +0100
+
 rust-proxmox-offline-mirror (0.5.0-1) stable; urgency=medium
 
   * fix #4259: mirror: add 'ignore-errors' option to make fetching errors from
