@@ -63,7 +63,9 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
         let key = file_get_contents(Path::new(&self.key_path))?;
 
         let options = HttpOptions {
-            user_agent: Some("proxmox-offline-mirror 0.1".to_string()),
+            user_agent: Some(
+                concat!("proxmox-offline-mirror/", env!("CARGO_PKG_VERSION")).to_string(),
+            ),
             proxy_config: ProxyConfig::from_proxy_env()?,
             ..Default::default()
         }; // TODO actually read version ;)

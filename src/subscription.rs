@@ -12,12 +12,10 @@ use crate::{config::SubscriptionKey, types::ProductType};
 
 // TODO: Update with final, public URL
 const PRODUCT_URL: &str = "-";
-// TODO add version?
-const USER_AGENT: &str = "proxmox-offline-mirror";
 
 fn client() -> Result<Client, Error> {
     let options = HttpOptions {
-        user_agent: Some(USER_AGENT.to_string()),
+        user_agent: Some(concat!("proxmox-offline-mirror/", env!("CARGO_PKG_VERSION")).to_string()),
         proxy_config: ProxyConfig::from_proxy_env()?,
         ..Default::default()
     };
