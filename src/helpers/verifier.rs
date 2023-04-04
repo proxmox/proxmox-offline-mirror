@@ -3,8 +3,8 @@ use anyhow::{bail, Error};
 use sequoia_openpgp::{
     parse::{
         stream::{
-            DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationHelper,
-            VerifierBuilder,
+            DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationError,
+            VerificationHelper, VerifierBuilder,
         },
         Parse,
     },
@@ -53,10 +53,35 @@ impl<'a> VerificationHelper for Helper<'a> {
         if good {
             Ok(()) // Good signature.
         } else {
-            for err in &errors {
-                eprintln!("\t{err}");
+            if errors.len() > 1 {
+                eprintln!("\nEncountered {} errors:", errors.len());
             }
-            Err(anyhow::anyhow!("encountered {} error(s)", errors.len()))
+
+            for (n, err) in errors.iter().enumerate() {
+                if errors.len() > 1 {
+                    eprintln!("\nSignature #{n}: {err}");
+                } else {
+                    eprintln!("\n{err}");
+                }
+                match err {
+                    VerificationError::MalformedSignature { error, .. }
+                    | VerificationError::UnboundKey { error, .. }
+                    | VerificationError::BadKey { error, .. }
+                    | VerificationError::BadSignature { error, .. } => {
+                        let mut cause = error.chain();
+                        if cause.len() > 1 {
+                            cause.next(); // already included in `err` above
+                            eprintln!("Caused by:");
+                            for (n, e) in cause.enumerate() {
+                                eprintln!("\t{n}: {e}");
+                            }
+                        }
+                    }
+                    VerificationError::MissingKey { .. } => {} // doesn't contain a cause
+                };
+            }
+            eprintln!();
+            Err(anyhow::anyhow!("No valid signature found."))
         }
     }
 }
