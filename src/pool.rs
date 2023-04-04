@@ -483,12 +483,12 @@ impl PoolLockGuard<'_> {
 
                 match actual_link_count.cmp(&expected_link_count) {
                     std::cmp::Ordering::Less => {
-                        println!("Something fishy going on with '{path:?}'");
+                        println!("Something fishy going on with {path:?}");
                         false
                     }
                     std::cmp::Ordering::Equal => {
                         // only checksum files remaining
-                        println!("Removing '{:?}'", &path);
+                        println!("Removing {path:?}");
                         true
                     }
                     std::cmp::Ordering::Greater => {
