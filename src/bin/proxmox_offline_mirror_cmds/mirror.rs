@@ -4,7 +4,7 @@ use proxmox_section_config::SectionConfigData;
 use proxmox_subscription::SubscriptionStatus;
 use serde_json::Value;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
 };
 
@@ -285,6 +285,7 @@ async fn remove_snapshot(
             },
             id: {
                 schema: MIRROR_ID_SCHEMA,
+                optional: true,
             },
             "output-format": {
                 schema: OUTPUT_FORMAT,
@@ -293,14 +294,55 @@ async fn remove_snapshot(
         }
     },
  )]
-/// Run Garbage Collection on pool
-async fn garbage_collect(config: Option<String>, id: String, _param: Value) -> Result<(), Error> {
+/// Run Garbage Collection on pool(s). If no `id` is specified, the pools of all configured mirrors
+/// will be GCed.
+async fn garbage_collect(
+    config: Option<String>,
+    id: Option<String>,
+    _param: Value,
+) -> Result<(), Error> {
     let config = config.unwrap_or_else(get_config_path);
 
     let (config, _digest) = proxmox_offline_mirror::config::config(&config)?;
-    let config: MirrorConfig = config.lookup("mirror", &id)?;
 
-    let (count, size) = mirror::gc(&config)?;
+    let (count, size) = if let Some(id) = id {
+        let config: MirrorConfig = config.lookup("mirror", &id)?;
+        mirror::gc(&config)?
+    } else {
+        let mut total_count = 0;
+        let mut total_size = 0;
+        let mut error_count = 0;
+        let mut base_dirs = HashSet::new();
+
+        for mirror_config in config.convert_to_typed_array::<MirrorConfig>("mirror")? {
+            if base_dirs.insert(mirror_config.base_dir.clone()) {
+                match mirror::gc(&mirror_config) {
+                    Ok((count, size)) => {
+                        println!(
+                            "{}: removed {count} files totalling {size}b",
+                            mirror_config.id
+                        );
+                        total_count += count;
+                        total_size += size;
+                    }
+                    Err(err) => {
+                        error_count += 1;
+                        eprintln!("{}: failed to run GC - {err}", mirror_config.id);
+                    }
+                }
+            } else {
+                println!(
+                    "{}: base dir '{}' already GCed",
+                    mirror_config.id, mirror_config.base_dir
+                );
+            }
+            println!();
+        }
+        if error_count > 0 {
+            eprintln!("Encountered {error_count} errors, please check log.");
+        }
+        (total_count, total_size)
+    };
 
     println!("Removed {} files totalling {}b", count, size);
 
