@@ -423,6 +423,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 use_subscription: None,
                 ignore_errors: false,
                 skip,
+                weak_crypto: None,
             });
         }
     }
@@ -438,6 +439,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         use_subscription,
         ignore_errors: false,
         skip,
+        weak_crypto: None,
     };
 
     configs.push(main_config);

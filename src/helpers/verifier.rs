@@ -9,9 +9,12 @@ use sequoia_openpgp::{
         Parse,
     },
     policy::StandardPolicy,
+    types::HashAlgorithm,
     Cert, KeyHandle,
 };
 use std::io;
+
+use crate::config::WeakCryptoConfig;
 
 struct Helper<'a> {
     cert: &'a Cert,
@@ -91,10 +94,25 @@ pub(crate) fn verify_signature<'msg>(
     msg: &'msg [u8],
     key: &[u8],
     detached_sig: Option<&[u8]>,
+    weak_crypto: &WeakCryptoConfig,
 ) -> Result<Vec<u8>, Error> {
     let cert = Cert::from_bytes(key)?;
 
-    let policy = StandardPolicy::new();
+    let mut policy = StandardPolicy::new();
+    if weak_crypto.allow_sha1 {
+        policy.accept_hash(HashAlgorithm::SHA1);
+    }
+    if let Some(min_dsa) = weak_crypto.min_dsa_key_size {
+        if min_dsa <= 1024 {
+            policy.accept_asymmetric_algo(sequoia_openpgp::policy::AsymmetricAlgorithm::DSA1024);
+        }
+    }
+    if let Some(min_rsa) = weak_crypto.min_dsa_key_size {
+        if min_rsa <= 1024 {
+            policy.accept_asymmetric_algo(sequoia_openpgp::policy::AsymmetricAlgorithm::RSA1024);
+        }
+    }
+
     let helper = Helper { cert: &cert };
 
     let verified = if let Some(sig) = detached_sig {

@@ -274,6 +274,10 @@ pub fn update_mirror(
         data.skip.skip_sections = Some(skip_sections);
     }
 
+    if let Some(weak_crypto) = update.weak_crypto {
+        data.weak_crypto = Some(weak_crypto);
+    }
+
     config.set_data(&id, "mirror", &data)?;
     proxmox_offline_mirror::config::save_config(&config_file, &config)?;
 

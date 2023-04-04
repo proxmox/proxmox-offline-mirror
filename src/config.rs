@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use proxmox_subscription::{sign::ServerBlob, SubscriptionInfo};
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, ApiType, Schema, Updater};
+use proxmox_schema::{api, ApiStringFormat, ApiType, Schema, Updater};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 use proxmox_sys::fs::{replace_file, CreateOptions};
 
@@ -48,6 +48,38 @@ pub struct SkipConfig {
 
 #[api(
     properties: {
+        "allow-sha1": {
+            type: bool,
+            default: false,
+            optional: true,
+        },
+        "min-dsa-key-size": {
+            type: u64,
+            optional: true,
+        },
+        "min-rsa-key-size": {
+            type: u64,
+            optional: true,
+        },
+    },
+)]
+#[derive(Default, Serialize, Deserialize, Updater, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
+/// Weak Cryptography Configuration
+pub struct WeakCryptoConfig {
+    /// Whether to allow SHA-1 based signatures
+    #[serde(default)]
+    pub allow_sha1: bool,
+    /// Whether to lower the key size cutoff for DSA-based signatures
+    #[serde(default)]
+    pub min_dsa_key_size: Option<u64>,
+    /// Whether to lower the key size cutoff for RSA-based signatures
+    #[serde(default)]
+    pub min_rsa_key_size: Option<u64>,
+}
+
+#[api(
+    properties: {
         id: {
             schema: MIRROR_ID_SCHEMA,
         },
@@ -81,6 +113,11 @@ pub struct SkipConfig {
         "skip": {
             type: SkipConfig,
         },
+        "weak-crypto": {
+            type: String,
+            optional: true,
+            format: &ApiStringFormat::PropertyString(&WeakCryptoConfig::API_SCHEMA),
+        },
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, Updater)]
@@ -111,6 +148,9 @@ pub struct MirrorConfig {
     /// Skip package files using these criteria
     #[serde(default, flatten)]
     pub skip: SkipConfig,
+    /// Whether to allow using weak cryptography algorithms or parameters, deviating from the default policy.
+    #[serde(default)]
+    pub weak_crypto: Option<String>,
 }
 
 #[api(

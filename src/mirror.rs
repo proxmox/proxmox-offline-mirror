@@ -10,10 +10,11 @@ use flate2::bufread::GzDecoder;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use nix::libc;
 use proxmox_http::{client::sync::Client, HttpClient, HttpOptions, ProxyConfig};
+use proxmox_schema::{ApiType, Schema};
 use proxmox_sys::fs::file_get_contents;
 
 use crate::{
-    config::{MirrorConfig, SkipConfig, SubscriptionKey},
+    config::{MirrorConfig, SkipConfig, SubscriptionKey, WeakCryptoConfig},
     convert_repo_line,
     pool::Pool,
     types::{Diff, Snapshot, SNAPSHOT_REGEX},
@@ -50,6 +51,7 @@ struct ParsedMirrorConfig {
     pub client: Client,
     pub ignore_errors: bool,
     pub skip: SkipConfig,
+    pub weak_crypto: WeakCryptoConfig,
 }
 
 impl TryInto<ParsedMirrorConfig> for MirrorConfig {
@@ -72,6 +74,15 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
 
         let client = Client::new(options);
 
+        let weak_crypto = match self.weak_crypto {
+            Some(property_string) => {
+                let value = (WeakCryptoConfig::API_SCHEMA as Schema)
+                    .parse_property_string(&property_string)?;
+                serde_json::from_value(value)?
+            }
+            None => WeakCryptoConfig::default(),
+        };
+
         Ok(ParsedMirrorConfig {
             repository,
             architectures: self.architectures,
@@ -83,6 +94,7 @@ impl TryInto<ParsedMirrorConfig> for MirrorConfig {
             client,
             ignore_errors: self.ignore_errors,
             skip: self.skip,
+            weak_crypto,
         })
     }
 }
@@ -208,7 +220,8 @@ fn fetch_release(
 
     println!("Verifying '{name}' signature using provided repository key..");
     let content = fetched.data_ref();
-    let verified = helpers::verify_signature(content, &config.key, sig.as_deref())?;
+    let verified =
+        helpers::verify_signature(content, &config.key, sig.as_deref(), &config.weak_crypto)?;
     println!("Success");
 
     let sha512 = Some(openssl::sha::sha512(content));
