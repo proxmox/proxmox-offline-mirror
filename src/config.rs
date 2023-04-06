@@ -244,7 +244,7 @@ impl SubscriptionKey {
             "pve" => ProductType::Pve,
             "pmg" => ProductType::Pmg,
             "pbs" => ProductType::Pbs,
-            "pom" => ProductType::Pom, // TODO replace with actual key prefix
+            "pom" => ProductType::Pom,
             _ => unimplemented!(),
         }
     }
