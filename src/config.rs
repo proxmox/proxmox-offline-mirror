@@ -149,7 +149,7 @@ pub struct MirrorConfig {
     #[serde(default, flatten)]
     pub skip: SkipConfig,
     /// Whether to allow using weak cryptography algorithms or parameters, deviating from the default policy.
-    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub weak_crypto: Option<String>,
 }
 
