@@ -408,7 +408,7 @@ async fn status(mountpoint: String, param: Value) -> Result<(), Error> {
             }
         }
         json.remove("subscriptions");
-        format_and_print_result(&json.into(), &output_format);
+        format_and_print_result(&serde_json::to_value(&json)?, &output_format);
     }
 
     Ok(())
