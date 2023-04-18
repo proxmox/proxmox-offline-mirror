@@ -25,6 +25,8 @@ Proxmox Backup Server  proxmox-backup-server  2.2.6-1
 Proxmox Mail Gateway   pmg-api                7.1-7
 =====================  =====================  ======================================
 
+.. _setup_offline_key:
+
 Setup Offline Mirror Key
 ------------------------
 

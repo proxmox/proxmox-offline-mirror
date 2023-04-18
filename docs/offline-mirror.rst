@@ -16,6 +16,11 @@ First, either run the ``setup`` wizard (``proxmox-offline-mirror setup``), or th
    ``setup`` wizard. Choose the product when adding a mirror and confirm the question regarding
    auto-adding the Debian base repos.
 
+.. note:: To be able to access and mirror a product's enterprise repository,
+   ``proxmox-offline-mirror`` requires that both, an active product subscription key and a Proxmox
+   Offline Mirror subscription is configured (see :ref:`setup_offline_key`)
+
+
 For example, to manually add a mirror entry for the Debian Bullseye security repository, the
 following command can be used:
 
