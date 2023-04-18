@@ -57,7 +57,8 @@ Register & Refresh Keys
    Offline Mirror subscription is configured.
 
 Register the hosts with their subscription keys and server IDs using
-``proxmox-offline-mirror key add``, for example:
+``proxmox-offline-mirror setup`` or ``proxmox-offline-mirror key add``, for
+example:
 
 .. code-block:: console
 

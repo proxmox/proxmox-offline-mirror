@@ -126,7 +126,7 @@ pub const SHOW_KEY_RETURN_TYPE: ReturnType = ReturnType {
     optional: true,
 };
 
-fn public_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
+pub(crate) fn public_key() -> Result<openssl::pkey::PKey<openssl::pkey::Public>, Error> {
     openssl::pkey::PKey::public_key_from_pem(&file_get_contents(DEFAULT_SIGNING_KEY)?)
         .map_err(Error::from)
 }

@@ -1,7 +1,9 @@
 use std::fmt::Display;
 use std::path::Path;
 
-use anyhow::{bail, Error};
+use anyhow::{format_err, bail, Error};
+use proxmox_offline_mirror::config::SubscriptionKey;
+use proxmox_offline_mirror::subscription::{extract_mirror_key, refresh_mirror_key};
 use serde_json::Value;
 
 use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment};
@@ -609,6 +611,94 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
     })
 }
 
+fn action_add_key(config: &SectionConfigData) -> Result<SubscriptionKey, Error> {
+    let (product, mirror_key) = if let Ok(mirror_key) =
+        extract_mirror_key(&config.convert_to_typed_array("subscription")?)
+    {
+        let subscription_products = &[
+            (ProductType::Pve, "Proxmox VE"),
+            (ProductType::Pbs, "Proxmox Backup Server"),
+            (ProductType::Pmg, "Proxmox Mail Gateway"),
+        ];
+
+        let product = read_selection_from_tty(
+            "Select Proxmox product for which subscription key should be added",
+            subscription_products,
+            None,
+        )?;
+
+        (product, Some(mirror_key))
+    } else {
+        println!("No mirror key configured yet, forcing mirror key setup first..");
+        (&ProductType::Pom, None)
+    };
+
+    let key = read_string_from_tty("Please enter subscription key", None)?;
+    if config.sections.get(&key).is_some() {
+        bail!("Key entry for '{key}' already exists - please use 'key refresh' or 'key update'!");
+    }
+
+    let server_id = if product == &ProductType::Pom {
+        let server_id = proxmox_subscription::get_hardware_address()?;
+        println!("Server ID of this system is '{server_id}'");
+        server_id
+    } else {
+        read_string_from_tty(
+            "Please enter server ID of offline system using this subscription",
+            None,
+        )?
+    };
+
+    let mut data = SubscriptionKey {
+        key,
+        server_id,
+        description: None,
+        info: None,
+    };
+
+    if data.product() != *product {
+        bail!(
+            "Selected product and product in subscription key don't match: {} != {}",
+            product,
+            data.product()
+        );
+    }
+
+    if read_bool_from_tty("Attempt to refresh key", Some(true))? {
+        let info = if let Some(mirror_key) = mirror_key {
+            if let Err(err) = refresh_mirror_key(mirror_key.clone()) {
+                eprintln!("Failed to refresh mirror_key '{}' - {err}", mirror_key.key);
+            }
+
+            let mut refreshed = proxmox_offline_mirror::subscription::refresh_offline_keys(
+                mirror_key,
+                vec![data.clone()],
+                public_key()?,
+            )?;
+
+            refreshed
+                .pop()
+                .ok_or_else(|| format_err!("Server did not return subscription info.."))?
+        } else {
+            proxmox_offline_mirror::subscription::refresh_mirror_key(data.clone())?
+        };
+
+        println!(
+            "Refreshed subscription info - status: {}, message: {}",
+            info.status,
+            info.message.as_ref().unwrap_or(&"-".to_string())
+        );
+
+        if info.key.as_ref() == Some(&data.key) {
+            data.info = Some(base64::encode(serde_json::to_vec(&info)?));
+        } else {
+            bail!("Server returned subscription info for wrong key.");
+        }
+    }
+
+    Ok(data)
+}
+
 #[api(
     input: {
         properties: {
@@ -639,6 +729,7 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
     }
 
     enum Action {
+        AddKey,
         AddMirror,
         AddMedium,
         Quit,
@@ -662,11 +753,13 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
             vec![
                 (Action::AddMirror, "Add new mirror entry"),
                 (Action::AddMedium, "Add new medium entry"),
+                (Action::AddKey, "Add new subscription key"),
                 (Action::Quit, "Quit"),
             ]
         } else {
             vec![
                 (Action::AddMirror, "Add new mirror entry"),
+                (Action::AddKey, "Add new subscription key"),
                 (Action::Quit, "Quit"),
             ]
         };
@@ -691,11 +784,20 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
                 println!("Config entry '{id}' added");
                 println!("Run \"proxmox-offline-mirror medium sync --config '{config_file}' '{id}'\" to sync mirror snapshots to medium.");
             }
+            Action::AddKey => {
+                let key = action_add_key(&config)?;
+                let id = key.key.clone();
+                config.set_data(&id, "subscription", &key)?;
+                save_config(&config_file, &config)?;
+                println!("Config entry '{id}' added");
+                println!("Run \"proxmox-offline-mirror key refresh\" to refresh subscription information");
+            }
         }
     }
 
     Ok(())
 }
+
 fn main() {
     let rpcenv = CliEnvironment::new();
 
