@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::path::Path;
 
-use anyhow::{format_err, bail, Error};
+use anyhow::{bail, format_err, Error};
 use proxmox_offline_mirror::config::SubscriptionKey;
 use proxmox_offline_mirror::subscription::{extract_mirror_key, refresh_mirror_key};
 use serde_json::Value;
