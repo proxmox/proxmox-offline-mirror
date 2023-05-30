@@ -3,7 +3,7 @@ Section: rust
 Priority: optional
 Build-Depends: bash-completion,
                cargo:native,
-               debhelper (>= 12),
+               debhelper-compat (= 13),
                dh-cargo (>= 25),
                fonts-lato,
                fonts-open-sans,
