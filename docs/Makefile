@@ -1,18 +1,18 @@
 include ../defines.mk
 
-GENERATED_SYNOPSIS := 						\
-	proxmox-offline-mirror/synopsis.rst			\
-	proxmox-offline-mirror-helper/synopsis.rst			\
+GENERATED_SYNOPSIS := \
+	proxmox-offline-mirror/synopsis.rst \
+	proxmox-offline-mirror-helper/synopsis.rst \
 	config/mirror/config.rst
 
-MAN1_PAGES := 				\
-	proxmox-offline-mirror.1	\
+MAN1_PAGES := \
+	proxmox-offline-mirror.1 \
 	proxmox-offline-mirror-helper.1
 
-MAN5_PAGES :=				\
+MAN5_PAGES := \
 	proxmox-offline-mirror.cfg.5
 
-EXAMPLE_FILES :=	\
+EXAMPLE_FILES := \
 	examples/nginx-conf
 
 # Sphinx documentation setup
