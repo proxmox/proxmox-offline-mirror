@@ -4,7 +4,6 @@ include defines.mk
 
 PACKAGE=proxmox-offline-mirror
 BUILDDIR ?= $(PACKAGE)-$(DEB_VERSION_UPSTREAM)
-BUILDDIR_TMP ?= $(BUILDDIR).tmp
 
 SUBDIRS := docs
 
@@ -22,6 +21,13 @@ else
 COMPILEDIR := target/debug
 endif
 
+USR_BIN := \
+	proxmox-offline-mirror \
+	proxmox-offline-mirror-helper
+
+COMPILED_BINS := \
+	$(addprefix $(COMPILEDIR)/,$(USR_BIN))
+
 all: cargo-build $(SUBDIRS)
 
 .PHONY: cargo-build
@@ -29,26 +35,36 @@ cargo-build:
 	cargo build $(CARGO_BUILD_ARGS)
 
 .PHONY: $(SUBDIRS)
-$(SUBDIRS):
+$(SUBDIRS): cargo-build
 	$(MAKE) -C $@
 
-.PHONY: build
-build: $(BUILDDIR)
-$(BUILDDIR):
-	rm -rf $(BUILDDIR) $(BUILDDIR_TMP); mkdir $(BUILDDIR_TMP)
-	rm -f debian/control
+$(COMPILED_BINS): cargo-build
+
+install: $(COMPILED_BINS)
+	$(MAKE) -C docs install DESTDIR=../debian/proxmox-offline-mirror-docs
+	install -dm755 $(DESTDIR)$(BINDIR)
+	$(foreach i,$(USR_BIN), \
+	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(BINDIR)/ ;)
+
+update-dcontrol: $(BUILDDIR)
 	debcargo package \
 	  --config debian/debcargo.toml \
 	  --changelog-ready \
 	  --no-overlay-write-back \
-	  --directory $(BUILDDIR_TMP) \
+	  --directory $(BUILDDIR) \
 	  $(PACKAGE) \
 	  $(shell dpkg-parsechangelog -l debian/changelog -SVersion | sed -e 's/-.*//')
-	cat $(BUILDDIR_TMP)/debian/control debian/control.extra > debian/control
+	cat $(BUILDDIR)/debian/control debian/control.extra > debian/control
+	rm -f debian/control
 	cp -a debian/control $(BUILDDIR_TMP)/debian/control
-	rm -f $(BUILDDIR_TMP)/Cargo.lock
-	find $(BUILDDIR_TMP)/debian -name "*.hint" -delete
-	mv $(BUILDDIR_TMP) $(BUILDDIR)
+	wrap-and-sort -t -k-f debian/control
+
+.PHONY: build
+build: $(BUILDDIR)
+$(BUILDDIR):
+	rm -rf $@ $@.tmp; mkdir $@.tmp
+	cp -a src docs debian Cargo.toml Makefile defines.mk $@.tmp/
+	mv $@.tmp $@
 
 .PHONY: deb
 deb: $(DEB)
