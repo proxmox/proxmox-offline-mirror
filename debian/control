@@ -74,6 +74,7 @@ Description: Proxmox offline repository mirror and subscription key manager
 Package: proxmox-offline-mirror-docs
 Architecture: all
 Section: admin
+Depends: ${misc:Depends},
 Breaks: proxmox-offline-mirror (<< 0.2.0~),
 Replaces: proxmox-offline-mirror (<< 0.2.0~),
 Description: Proxmox offline repository mirror and subscription key manager
