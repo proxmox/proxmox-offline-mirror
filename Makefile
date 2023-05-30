@@ -14,6 +14,8 @@ HELPER_DBG_DEB=$(PACKAGE)-helper-dbgsym_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_H
 DOC_DEB=$(PACKAGE)-docs_$(DEB_VERSION_UPSTREAM_REVISION)_all.deb
 DSC=rust-$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION).dsc
 
+DEBS = $(DEB) $(HELPER_DEB) $(DBG_DEB) $(HELPER_DBG_DEB) $(DOC_DEB)
+
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 COMPILEDIR := target/release
@@ -68,6 +70,7 @@ $(BUILDDIR):
 
 .PHONY: deb
 deb: $(DEB)
+$(HELPER_DEB) $(DBG_DEB) $(HELPER_DBG_DEB) $(DOC_DEB): $(DEB)
 $(DEB): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc --no-pre-clean
 	lintian $(DEB) $(DOC_DEB) $(HELPER_DEB)
@@ -88,8 +91,8 @@ dinstall: $(DEB)
 	dpkg -i $(DEB) $(DBG_DEB) $(DOC_DEB)
 
 .PHONY: upload
-upload: $(DEB)
-	tar cf - $(DEB) $(HELPER_DEB) $(DBG_DEB) $(HELPER_DBG_DEB) $(DOC_DEB) | ssh -X repoman@repo.proxmox.com -- upload --product pve,pmg,pbs,pbs-client --dist bullseye --arch $(DEB_HOST_ARCH)
+upload: $(DEBS)
+	tar cf - $(DEBS) | ssh -X repoman@repo.proxmox.com -- upload --product pve,pmg,pbs,pbs-client --dist bullseye --arch $(DEB_HOST_ARCH)
 
 .PHONY: distclean
 distclean: clean
