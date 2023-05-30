@@ -1,4 +1,12 @@
-rust-proxmox-offline-mirror (0.5.1-1) stable; urgency=medium
+rust-proxmox-offline-mirror (0.6.0) bookworm; urgency=medium
+
+  * re-build for Debian Bookworm based release
+
+  * switch to native versioning
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 30 May 2023 13:05:47 +0200
+
+rust-proxmox-offline-mirror (0.5.1-1) bullseye; urgency=medium
 
   * fix #4445: add proxy support by honoring ALL_PROXY environment variable
     for mirroring and subscription management
