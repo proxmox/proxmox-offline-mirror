@@ -73,10 +73,15 @@ $(DEB): $(BUILDDIR)
 	lintian $(DEB) $(DOC_DEB) $(HELPER_DEB)
 
 .PHONY: dsc
-dsc: $(DSC)
+dsc:
+	rm -rf $(BUILDDIR) $(DSC)
+	$(MAKE) $(DSC)
+	lintian $(DSC)
 $(DSC): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -S -us -uc -d -nc
-	lintian $(DSC)
+
+sbuild: $(DSC)
+	sbuild $<
 
 .PHONY: dinstall
 dinstall: $(DEB)
@@ -92,5 +97,6 @@ distclean: clean
 .PHONY: clean
 clean:
 	cargo clean
-	rm -rf *.deb *.buildinfo *.changes *.dsc rust-$(PACKAGE)_*.tar.?z $(PACKAGE)-*/
+	rm -f *.deb *.build *.buildinfo *.changes *.dsc rust-$(PACKAGE)*.tar*
+	rm -rf $(PACKAGE)-[0-9]*/
 	find . -name '*~' -exec rm {} ';'
