@@ -91,8 +91,9 @@ dinstall: $(DEB)
 	dpkg -i $(DEB) $(DBG_DEB) $(DOC_DEB)
 
 .PHONY: upload
+upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEBS)
-	tar cf - $(DEBS) | ssh -X repoman@repo.proxmox.com -- upload --product pve,pmg,pbs,pbs-client --dist bullseye --arch $(DEB_HOST_ARCH)
+	tar cf - $(DEBS) | ssh -X repoman@repo.proxmox.com -- upload --product pve,pmg,pbs,pbs-client --dist $(UPLOAD_DIST) --arch $(DEB_HOST_ARCH)
 
 .PHONY: distclean
 distclean: clean
