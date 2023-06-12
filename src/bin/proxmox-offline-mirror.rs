@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::matches;
 use std::path::Path;
 
 use anyhow::{bail, format_err, Error};
@@ -274,8 +275,36 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Some(releases.len() - 1),
                 )?;
 
-                let components =
-                    read_string_from_tty("Enter repository components", Some("main test"))?;
+                let (base_url, components) = if matches!(release, Release::Bookworm) {
+                    let variants = &[
+                        (ProxmoxVariant::Enterprise, "Enterprise repository"),
+                        (ProxmoxVariant::NoSubscription, "No-Subscription repository"),
+                        (ProxmoxVariant::Test, "Test repository"),
+                    ];
+
+                    let variant =
+                        read_selection_from_tty("Select repository variant", variants, Some(0))?;
+
+                    match variant {
+                        ProxmoxVariant::Enterprise => (
+                            "https://enterprise.proxmox.com/debian/ceph",
+                            "enterprise".to_string(),
+                        ),
+                        ProxmoxVariant::NoSubscription => (
+                            "http://download.proxmox.com/debian/ceph",
+                            "no-subscription".to_string(),
+                        ),
+                        ProxmoxVariant::Test => (
+                            "http://download.proxmox.com/debian/ceph",
+                            "test".to_string(),
+                        ),
+                    }
+                } else {
+                    (
+                        "http://download.proxmox.com/debian/ceph",
+                        read_string_from_tty("Enter repository components", Some("main test"))?,
+                    )
+                };
 
                 let key = match release {
                     Release::Bookworm => "/etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg",
@@ -291,9 +320,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     CephRelease::Quincy => "quincy",
                 };
 
-                let url = format!(
-                    "http://download.proxmox.com/debian/ceph-{ceph_release} {release} {components}"
-                );
+                let url = format!("{base_url}-{ceph_release} {release} {components}");
                 let suggested_id = format!("ceph_{ceph_release}_{release}");
 
                 (url, key.to_string(), suggested_id, SkipConfig::default())
