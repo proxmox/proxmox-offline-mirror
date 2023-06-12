@@ -44,6 +44,7 @@ impl Display for Distro {
 }
 
 enum Release {
+    Bookworm,
     Bullseye,
     Buster,
 }
@@ -51,6 +52,7 @@ enum Release {
 impl Display for Release {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Release::Bookworm => write!(f, "bookworm"),
             Release::Bullseye => write!(f, "bullseye"),
             Release::Buster => write!(f, "buster"),
         }
@@ -131,6 +133,19 @@ fn derive_debian_repo(
         skip_sections,
     };
     let url = match (release, variant) {
+        (Release::Bookworm, DebianVariant::Main) => "http://deb.debian.org/debian bookworm",
+        (Release::Bookworm, DebianVariant::Security) => {
+            "http://deb.debian.org/debian-security bookworm-security"
+        }
+        (Release::Bookworm, DebianVariant::Updates) => {
+            "http://deb.debian.org/debian bookworm-updates"
+        }
+        (Release::Bookworm, DebianVariant::Backports) => {
+            "http://deb.debian.org/debian bookworm-backports"
+        }
+        (Release::Bookworm, DebianVariant::Debug) => {
+            "http://deb.debian.org/debian-debug bookworm-debug"
+        }
         (Release::Bullseye, DebianVariant::Main) => "http://deb.debian.org/debian bullseye",
         (Release::Bullseye, DebianVariant::Security) => {
             "http://deb.debian.org/debian-security bullseye-security"
@@ -159,6 +174,14 @@ fn derive_debian_repo(
 
     let url = format!("{url} {components}");
     let key = match (release, variant) {
+        (Release::Bookworm, DebianVariant::Security) => {
+            "/usr/share/keyrings/debian-archive-bookworm-security-automatic.gpg"
+        }
+        (Release::Bookworm, DebianVariant::Updates) |
+        (Release::Bookworm, DebianVariant::Backports) => {
+            "/usr/share/keyrings/debian-archive-bookworm-automatic.gpg"
+        }
+        (Release::Bookworm, _) => "/usr/share/keyrings/debian-archive-bookworm-stable.gpg",
         (Release::Bullseye, DebianVariant::Security) => {
             "/usr/share/keyrings/debian-archive-bullseye-security-automatic.gpg"
         }
@@ -191,7 +214,11 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         ];
         let dist = read_selection_from_tty("Select distro to mirror", distros, None)?;
 
-        let releases = &[(Release::Bullseye, "Bullseye"), (Release::Buster, "Buster")];
+        let releases = &[
+            (Release::Bookworm, "Bookworm"),
+            (Release::Bullseye, "Bullseye"),
+            (Release::Buster, "Buster"),
+        ];
         let release = read_selection_from_tty("Select release", releases, Some(0))?;
 
         let mut add_debian_repo = false;
@@ -224,6 +251,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 }
 
                 let releases = match release {
+                    &Release::Bookworm => vec![(CephRelease::Quincy, "Quincy (17.x)")],
                     Release::Bullseye => {
                         vec![
                             (CephRelease::Octopus, "Octopus (15.x)"),
@@ -250,6 +278,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     read_string_from_tty("Enter repository components", Some("main test"))?;
 
                 let key = match release {
+                    Release::Bookworm => "/etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg",
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
                 };
@@ -281,6 +310,9 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
                 // TODO enterprise query for key!
                 let url = match (release, variant) {
+                    (Release::Bookworm, ProxmoxVariant::Enterprise) => format!("https://enterprise.proxmox.com/debian/{product} bookworm {product}-enterprise"),
+                    (Release::Bookworm, ProxmoxVariant::NoSubscription) => format!("http://download.proxmox.com/debian/{product} bookworm {product}-no-subscription"),
+                    (Release::Bookworm, ProxmoxVariant::Test) => format!("http://download.proxmox.com/debian/{product} bookworm {product}test"),
                     (Release::Bullseye, ProxmoxVariant::Enterprise) => format!("https://enterprise.proxmox.com/debian/{product} bullseye {product}-enterprise"),
                     (Release::Bullseye, ProxmoxVariant::NoSubscription) => format!("http://download.proxmox.com/debian/{product} bullseye {product}-no-subscription"),
                     (Release::Bullseye, ProxmoxVariant::Test) => format!("http://download.proxmox.com/debian/{product} bullseye {product}test"),
@@ -297,6 +329,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 };
 
                 let key = match release {
+                    Release::Bookworm => "/etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg",
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
                 };
