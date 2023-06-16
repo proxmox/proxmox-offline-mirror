@@ -1,3 +1,11 @@
+rust-proxmox-offline-mirror (0.6.1) bookworm; urgency=medium
+
+  * add support for bookworm enterprise ceph repo
+
+  * add bookworm to the list of releases for easier set up
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 16 Jun 2023 09:29:40 +0200
+
 rust-proxmox-offline-mirror (0.6.0) bookworm; urgency=medium
 
   * re-build for Debian Bookworm based release
