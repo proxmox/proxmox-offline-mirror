@@ -1,3 +1,31 @@
+rust-proxmox-offline-mirror (0.5.2) bullseye; urgency=medium
+
+  * switch to native verisoning
+
+  * add support for bookworm enterprise ceph repo
+
+  * add bookworm to the list of releases for easier set up
+
+  * update dependencies for current bookworm state
+
+  * fix #4614: add note about key requirements to mirror docs
+
+  * setup wizard: add subscription keys
+
+  * config: properly skip serializing empty weak_crypto
+
+  * fix #4261: allow GC for all configured mirrors
+
+  * pool: drop redundant quote for paths..
+
+  * fix #4632: allow escape hatches for legacy repositories
+
+  * improve GPG error messages
+
+  * actually include version in user-agent
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 16 Jun 2023 10:09:22 +0200
+
 rust-proxmox-offline-mirror (0.5.1-1) stable; urgency=medium
 
   * fix #4445: add proxy support by honoring ALL_PROXY environment variable
