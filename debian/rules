@@ -32,3 +32,13 @@ override_dh_missing:
 
 override_dh_compress:
 	dh_compress -X.pdf
+
+override_dh_strip:
+	dh_strip
+	for exe in $$(find \
+	    debian/proxmox-offline-mirror/usr \
+	    debian/proxmox-offline-mirror-helper/usr \
+	    -executable -type f); \
+	do \
+	  debian/scripts/elf-strip-unused-dependencies.sh "$$exe" || true; \
+	done
