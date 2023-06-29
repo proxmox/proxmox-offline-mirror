@@ -48,7 +48,7 @@ install: $(COMPILED_BINS)
 	$(foreach i,$(USR_BIN), \
 	    install -m755 $(COMPILEDIR)/$(i) $(DESTDIR)$(BINDIR)/ ;)
 
-update-dcontrol: $(BUILDDIR)
+update-dcontrol: #$(BUILDDIR)
 	debcargo package \
 	  --config debian/debcargo.toml \
 	  --changelog-ready \
@@ -57,9 +57,7 @@ update-dcontrol: $(BUILDDIR)
 	  $(PACKAGE) \
 	  $(shell dpkg-parsechangelog -l debian/changelog -SVersion | sed -e 's/-.*//')
 	cat $(BUILDDIR)/debian/control debian/control.extra > debian/control
-	rm -f debian/control
-	cp -a debian/control $(BUILDDIR_TMP)/debian/control
-	wrap-and-sort -t -k-f debian/control
+	wrap-and-sort -t -k -f debian/control
 
 .PHONY: build
 build: $(BUILDDIR)
