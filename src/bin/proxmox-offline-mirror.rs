@@ -235,9 +235,15 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 ];
                 let variant =
                     read_selection_from_tty("Select repository variant", variants, Some(0))?;
+
+                let default_components = match release {
+                    Release::Bookworm => "main contrib non-free non-free-firmware",
+                    _ => "main contrib non-free"
+                };
+
                 let components = read_string_from_tty(
                     "Enter repository components",
-                    Some("main contrib non-free"),
+                    Some(default_components),
                 )?;
 
                 derive_debian_repo(release, variant, &components)?
