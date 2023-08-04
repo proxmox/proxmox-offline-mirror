@@ -59,27 +59,27 @@ verify that all packages are from a trusted source.
 .. tip:: If you install Proxmox Offline Mirror on an existing Proxmox VE, Proxmox Backup Server or
    Proxmox Mail Gateway, the verification key will already be present.
 
-If you install Proxmox Offline Mirror on top of Debian Bullseye, download and install the key with
+If you install Proxmox Offline Mirror on top of Debian Bookworm, download and install the key with
 the following commands:
 
 .. code-block:: console
 
- # wget https://enterprise.proxmox.com/debian/proxmox-release-bullseye.gpg \
-   -O /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+ # wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg \
+   -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
 
 Verify the SHA512 checksum afterwards with the expected output below:
 
 .. code-block:: console
 
- # sha512sum /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
- 7fb03ec8a1675723d2853b84aa4fdb49a46a3bb72b9951361488bfd19b29aab0a789a4f8c7406e71a69aabbc727c936d3549731c4659ffa1a08f44db8fdcebfa  /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+ # sha512sum /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+ 7da6fe34168adc6e479327ba517796d4702fa2f8b4f0a9833f5ea6e6b48f6507a6da403a274fe201595edc86a84463d50383d07f64bdde2e3658108db7d6dc87  /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
 
 or the md5sum, with the expected output below:
 
 .. code-block:: console
 
- # md5sum /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
- bcc35c7173e0845c0d6ad6470b70f50e /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+ # md5sum /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+ 41558dc019ef90bd0f6067644a51cf5b  /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
 
 .. _package_repositories_client_only_apt:
 
@@ -102,17 +102,17 @@ Proxmox systems.
    repository, those ship some updated packages from Debian native packages, which would get pulled
    in, even if not required for the offline mirroring.
 
-Repository for Debian 11 (Bullseye) based releases
+Repository for Debian 12 (Bookworm) based releases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Here are the actual steps for a generic Debian 11 (Bullseye) based system.
+Here are the actual steps for a generic Debian 12 (Bookworm) based system.
 
 First edit the file ``/etc/apt/sources.list.d/pbs-client.list`` and add the following snippet:
 
 .. code-block:: sources.list
   :caption: File: ``/etc/apt/sources.list.d/pbs-client.list``
 
-  deb http://download.proxmox.com/debian/pbs-client bullseye main
+  deb http://download.proxmox.com/debian/pbs-client bookworm main
 
 Now you should be able to install the ``proxmox-offline-mirror`` package, see
 :ref:`apt_install_pom`.

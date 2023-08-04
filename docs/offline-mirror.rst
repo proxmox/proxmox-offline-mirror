@@ -21,17 +21,17 @@ First, either run the ``setup`` wizard (``proxmox-offline-mirror setup``), or th
    Offline Mirror subscription is configured (see :ref:`setup_offline_key`)
 
 
-For example, to manually add a mirror entry for the Debian Bullseye security repository, the
+For example, to manually add a mirror entry for the Debian Bookworm security repository, the
 following command can be used:
 
 .. code-block:: console
 
   proxmox-offline-mirror config mirror add \
-   --id debian-bullseye-security \
+   --id debian-bookworm-security \
    --architectures amd64 \
    --architectures all \
-   --repository 'deb http://deb.debian.org/debian-security bullseye-security main contrib non-free' \
-   --key-path /etc/apt/trusted.gpg.d/debian-archive-bullseye-security-automatic.gpg \
+   --repository 'deb http://deb.debian.org/debian-security bookworm-security main contrib non-free' \
+   --key-path /etc/apt/trusted.gpg.d/debian-archive-bookworm-security-automatic.gpg \
    --sync true \
    --verify true \
    --base-dir /path/to/mirror/base-dir
@@ -51,7 +51,7 @@ To create the first (and subsequent) snapshots, the following command can be use
 
 .. code-block:: console
 
-  proxmox-offline-mirror mirror snapshot create debian-bullseye-security
+  proxmox-offline-mirror mirror snapshot create debian-bookworm-security
 
 .. note:: Depending on the parameters used and the size of the original repository, creating a
   snapshot can take both time and require significant disk space. This is especially true for the
@@ -82,7 +82,7 @@ Some examples for packages and section filters:
 - `--skip-sections 'games'` - filter sections containing game packages
 - `--skip-sections 'debug'` - filter sections containing debug information
 
-Please refer to https://packages.debian.org/bullseye/ for a list of Debian archive sections and
+Please refer to https://packages.debian.org/bookworm/ for a list of Debian archive sections and
 their contents.
 
 Space Management

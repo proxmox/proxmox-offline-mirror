@@ -10,15 +10,15 @@ Setting Up a Medium
 
 Either run the ``setup`` wizard again, or use the ``config medium add`` command.
 For example, to define a new medium containing the
-`proxmox-ve-bullseye-no-subscription` and `debian-bullseye` mirrors, run the
+`proxmox-ve-bookworm-no-subscription` and `debian-bookworm` mirrors, run the
 following command:
 
 .. code-block:: console
 
   proxmox-offline-mirror config medium add \
-   --id pve-bullseye \
-   --mirrors proxmox-ve-bullseye-no-subscription \
-   --mirrors debian-bullseye \
+   --id pve-bookworm \
+   --mirrors proxmox-ve-bookworm-no-subscription \
+   --mirrors debian-bookworm \
    --sync true \
    --verify true \
    --mountpoint /path/where/medium/is/mounted
@@ -32,7 +32,7 @@ To sync the local mirrors to a medium, the following command can be used:
 
 .. code-block:: console
 
-  proxmox-offline-mirror medium sync --id pve-bullseye
+  proxmox-offline-mirror medium sync --id pve-bookworm
 
 This command will sync all mirrors linked with this medium to the medium's mount point.
 Additionally, it will sync all offline keys for further processing by
