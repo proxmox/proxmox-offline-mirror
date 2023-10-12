@@ -1,6 +1,11 @@
+/*.buildinfo
+/*.changes
+/*.deb
+/*.tar.*
+/docs/*/synopsis.rst
+/docs/_ext/__pycache__
+/docs/config/*/config.rst
+/docs/output
+/proxmox-offline-mirror-[0-9]*/
 Cargo.lock
 target
-/*.deb
-/*.changes
-/*.buildinfo
-/*.tar.*
