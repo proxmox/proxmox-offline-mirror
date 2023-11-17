@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::io::IsTerminal;
 use std::matches;
 use std::path::Path;
 
@@ -11,7 +12,6 @@ use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnviron
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
 use proxmox_subscription::ProductType;
-use proxmox_sys::linux::tty;
 
 use proxmox_offline_mirror::helpers::tty::{
     read_bool_from_tty, read_selection_from_tty, read_string_from_tty,
@@ -785,7 +785,7 @@ fn action_add_key(config: &SectionConfigData) -> Result<SubscriptionKey, Error> 
 )]
 /// Interactive setup wizard.
 async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
-    if !tty::stdin_isatty() {
+    if !std::io::stdin().is_terminal() {
         bail!("Setup wizard can only run interactively.");
     }
 

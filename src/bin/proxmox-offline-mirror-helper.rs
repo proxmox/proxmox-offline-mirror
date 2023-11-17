@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::process::Command;
 use std::{collections::HashMap, path::Path};
@@ -7,8 +8,8 @@ use anyhow::{bail, format_err, Error};
 use proxmox_offline_mirror::types::Snapshot;
 use proxmox_subscription::{ProductType, SubscriptionInfo};
 use proxmox_sys::command::run_command;
+use proxmox_sys::fs::file_get_contents;
 use proxmox_sys::fs::{replace_file, CreateOptions};
-use proxmox_sys::{fs::file_get_contents, linux::tty};
 use proxmox_time::epoch_to_rfc3339_utc;
 use serde_json::Value;
 
@@ -63,7 +64,7 @@ fn set_subscription_key(
 )]
 /// Interactive setup wizard.
 async fn setup(_param: Value) -> Result<(), Error> {
-    if !tty::stdin_isatty() {
+    if !std::io::stdin().is_terminal() {
         bail!("Setup wizard can only run interactively.");
     }
 
