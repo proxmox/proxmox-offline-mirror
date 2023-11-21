@@ -255,10 +255,14 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Octopus,
                     Pacific,
                     Quincy,
+                    Reef,
                 }
 
                 let releases = match release {
-                    &Release::Bookworm => vec![(CephRelease::Quincy, "Quincy (17.x)")],
+                    Release::Bookworm => vec![
+                        (CephRelease::Quincy, "Quincy (17.x)"),
+                        (CephRelease::Reef, "Reef (18.x)"),
+                    ],
                     Release::Bullseye => {
                         vec![
                             (CephRelease::Octopus, "Octopus (15.x)"),
@@ -324,6 +328,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     CephRelease::Octopus => "octopus",
                     CephRelease::Pacific => "pacific",
                     CephRelease::Quincy => "quincy",
+                    CephRelease::Reef => "reef",
                 };
 
                 let url = format!("{base_url}-{ceph_release} {release} {components}");
