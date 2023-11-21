@@ -30,13 +30,13 @@ use proxmox_apt::{
 
 use crate::helpers;
 
-fn mirror_dir(config: &MirrorConfig) -> String {
-    format!("{}/{}", config.base_dir, config.id)
+fn mirror_dir(config: &MirrorConfig) -> PathBuf {
+    PathBuf::from(&config.base_dir).join(&config.id)
 }
 
 pub(crate) fn pool(config: &MirrorConfig) -> Result<Pool, Error> {
-    let pool_dir = format!("{}/.pool", config.base_dir);
-    Pool::open(Path::new(&mirror_dir(config)), Path::new(&pool_dir))
+    let pool_dir = PathBuf::from(&config.base_dir).join(".pool");
+    Pool::open(&mirror_dir(config), &pool_dir)
 }
 
 /// `MirrorConfig`, but some fields converted/parsed into usable types.
@@ -450,11 +450,11 @@ fn fetch_plain_file(
 
 /// Initialize a new mirror (by creating the corresponding pool).
 pub fn init(config: &MirrorConfig) -> Result<(), Error> {
-    let pool_dir = format!("{}/.pool", config.base_dir);
+    let pool_dir = PathBuf::from(&config.base_dir).join(".pool");
 
-    let dir = format!("{}/{}", config.base_dir, config.id);
+    let dir = PathBuf::from(&config.base_dir).join(&config.id);
 
-    Pool::create(Path::new(&dir), Path::new(&pool_dir))?;
+    Pool::create(&dir, &pool_dir)?;
     Ok(())
 }
 
@@ -472,13 +472,11 @@ pub fn list_snapshots(config: &MirrorConfig) -> Result<Vec<Snapshot>, Error> {
 
     let mut list: Vec<Snapshot> = vec![];
 
-    let dir = mirror_dir(config);
-
-    let path = Path::new(&dir);
+    let path = mirror_dir(config);
 
     proxmox_sys::fs::scandir(
         libc::AT_FDCWD,
-        path,
+        &path,
         &SNAPSHOT_REGEX,
         |_l2_fd, snapshot, file_type| {
             if file_type != nix::dir::Type::Directory {
