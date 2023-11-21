@@ -296,10 +296,13 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                         read_selection_from_tty("Select repository variant", variants, Some(0))?;
 
                     match variant {
-                        ProxmoxVariant::Enterprise => (
-                            "https://enterprise.proxmox.com/debian/ceph",
-                            "enterprise".to_string(),
-                        ),
+                        ProxmoxVariant::Enterprise => {
+                            use_subscription = Some(ProductType::Pve);
+                            (
+                                "https://enterprise.proxmox.com/debian/ceph",
+                                "enterprise".to_string(),
+                            )
+                        }
                         ProxmoxVariant::NoSubscription => (
                             "http://download.proxmox.com/debian/ceph",
                             "no-subscription".to_string(),
