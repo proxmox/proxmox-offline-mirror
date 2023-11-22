@@ -8,14 +8,14 @@ disk (for example a USB pen drive) or a local network share.
 Setting Up a Medium
 -------------------
 
-Either run the ``setup`` wizard again, or use the ``config medium add`` command.
+Either run the ``setup`` wizard again, or use the ``config media add`` command.
 For example, to define a new medium containing the
 `proxmox-ve-bookworm-no-subscription` and `debian-bookworm` mirrors, run the
 following command:
 
 .. code-block:: console
 
-  proxmox-offline-mirror config medium add \
+  proxmox-offline-mirror config media add \
    --id pve-bookworm \
    --mirrors proxmox-ve-bookworm-no-subscription \
    --mirrors debian-bookworm \
