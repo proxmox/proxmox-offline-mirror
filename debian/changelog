@@ -1,3 +1,17 @@
+rust-proxmox-offline-mirror (0.6.3) bookworm; urgency=medium
+
+  * add non-free-firmware to bookworm default components
+
+  * docs: fix bullseye references
+
+  * docs: fix copied env variable documentation
+
+  * add support for ceph reef
+
+  * add missing subscription setting for ceph enterprise repos
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 25 Nov 2023 17:22:31 +0100
+
 rust-proxmox-offline-mirror (0.6.2) bookworm; urgency=medium
 
   * d/rules: patch out wrongly linked libraries from ELFs
