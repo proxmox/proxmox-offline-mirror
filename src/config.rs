@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, ApiStringFormat, ApiType, Schema, Updater};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
+use proxmox_subscription::ProductType;
 use proxmox_sys::fs::{replace_file, CreateOptions};
 
 use crate::types::{
-    ProductType, MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA, PROXMOX_SERVER_ID_SCHEMA,
-    PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
+    MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA, PROXMOX_SERVER_ID_SCHEMA, PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
 };
 
 /// Skip Configuration

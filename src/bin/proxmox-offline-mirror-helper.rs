@@ -4,8 +4,8 @@ use std::{collections::HashMap, path::Path};
 
 use anyhow::{bail, format_err, Error};
 
-use proxmox_offline_mirror::types::{ProductType, Snapshot};
-use proxmox_subscription::SubscriptionInfo;
+use proxmox_offline_mirror::types::Snapshot;
+use proxmox_subscription::{ProductType, SubscriptionInfo};
 use proxmox_sys::command::run_command;
 use proxmox_sys::fs::{replace_file, CreateOptions};
 use proxmox_sys::{fs::file_get_contents, linux::tty};

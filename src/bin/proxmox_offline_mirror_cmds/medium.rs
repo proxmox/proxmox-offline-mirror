@@ -6,7 +6,7 @@ use serde_json::Value;
 use proxmox_router::cli::{CliCommand, CliCommandMap, CommandLineInterface, OUTPUT_FORMAT};
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
-use proxmox_subscription::SubscriptionInfo;
+use proxmox_subscription::{ProductType, SubscriptionInfo};
 use proxmox_time::epoch_to_rfc3339_utc;
 
 use proxmox_offline_mirror::{
@@ -14,7 +14,7 @@ use proxmox_offline_mirror::{
     generate_repo_file_line,
     medium::{self},
     mirror,
-    types::{ProductType, Snapshot, MEDIA_ID_SCHEMA},
+    types::{Snapshot, MEDIA_ID_SCHEMA},
 };
 
 use super::get_config_path;

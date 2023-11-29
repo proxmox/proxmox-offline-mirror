@@ -5,10 +5,10 @@ use proxmox_http::{HttpClient, HttpOptions, ProxyConfig};
 use proxmox_subscription::SubscriptionStatus;
 use proxmox_subscription::{
     sign::{SignRequest, SignedResponse},
-    SubscriptionInfo,
+    ProductType, SubscriptionInfo,
 };
 
-use crate::{config::SubscriptionKey, types::ProductType};
+use crate::config::SubscriptionKey;
 
 // TODO: Update with final, public URL
 const PRODUCT_URL: &str = "-";

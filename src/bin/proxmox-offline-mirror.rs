@@ -10,6 +10,7 @@ use serde_json::Value;
 use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment};
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
+use proxmox_subscription::ProductType;
 use proxmox_sys::linux::tty;
 
 use proxmox_offline_mirror::helpers::tty::{
@@ -18,7 +19,7 @@ use proxmox_offline_mirror::helpers::tty::{
 use proxmox_offline_mirror::{
     config::{save_config, MediaConfig, MirrorConfig, SkipConfig},
     mirror,
-    types::{ProductType, MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA},
+    types::{MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA},
 };
 
 mod proxmox_offline_mirror_cmds;

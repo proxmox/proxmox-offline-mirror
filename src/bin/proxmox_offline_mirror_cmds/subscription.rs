@@ -7,9 +7,9 @@ use std::convert::TryFrom;
 use proxmox_offline_mirror::{
     config::{SubscriptionKey, SubscriptionKeyUpdater},
     subscription::{extract_mirror_key, refresh_mirror_key, refresh_offline_keys},
-    types::{ProductType, PROXMOX_SUBSCRIPTION_KEY_SCHEMA},
+    types::PROXMOX_SUBSCRIPTION_KEY_SCHEMA,
 };
-use proxmox_subscription::{files::DEFAULT_SIGNING_KEY, SubscriptionStatus};
+use proxmox_subscription::{files::DEFAULT_SIGNING_KEY, ProductType, SubscriptionStatus};
 use proxmox_sys::fs::file_get_contents;
 use proxmox_time::epoch_to_rfc3339_utc;
 

@@ -1,10 +1,9 @@
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use anyhow::Error;
-use proxmox_schema::{api, const_regex, ApiStringFormat, Schema, StringSchema, Updater};
+use proxmox_schema::{api, const_regex, ApiStringFormat, Schema, StringSchema};
 use proxmox_serde::{forward_deserialize_to_from_str, forward_serialize_to_display};
 use proxmox_time::{epoch_i64, epoch_to_rfc3339_utc, parse_rfc3339};
-use serde::{Deserialize, Serialize};
 
 #[rustfmt::skip]
 #[macro_export]
@@ -97,47 +96,6 @@ impl FromStr for Snapshot {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self(parse_rfc3339(s)?))
-    }
-}
-
-#[api()]
-#[derive(Debug, Clone, Serialize, Deserialize, Updater, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-/// Product type
-pub enum ProductType {
-    /// Proxmox Virtual Environment
-    Pve,
-    /// Proxmox Backup Server
-    Pbs,
-    /// Proxmox Mail Gateway
-    Pmg,
-    /// Proxmox Offline Mirror
-    Pom,
-}
-
-impl Display for ProductType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let txt = match self {
-            ProductType::Pve => "pve",
-            ProductType::Pbs => "pbs",
-            ProductType::Pmg => "pmg",
-            ProductType::Pom => "pom",
-        };
-        f.write_str(txt)
-    }
-}
-
-impl FromStr for ProductType {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "pve" => Ok(ProductType::Pve),
-            "pmg" => Ok(ProductType::Pmg),
-            "pbs" => Ok(ProductType::Pbs),
-            "pom" => Ok(ProductType::Pom),
-            _ => unimplemented!(),
-        }
     }
 }
 
