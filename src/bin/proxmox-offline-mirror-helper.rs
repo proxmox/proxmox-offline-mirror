@@ -24,7 +24,7 @@ use proxmox_offline_mirror::helpers::tty::{
 use proxmox_offline_mirror::medium::{self, generate_repo_snippet, MediumState};
 
 fn set_subscription_key(
-    product: ProductType,
+    product: &ProductType,
     subscription: &SubscriptionInfo,
 ) -> Result<String, Error> {
     let data = base64::encode(serde_json::to_vec(subscription)?);
@@ -218,32 +218,34 @@ async fn setup(_param: Value) -> Result<(), Error> {
             }
             Action::UpdateOfflineSubscription => {
                 let server_id = proxmox_subscription::get_hardware_address()?;
-                let subscriptions: Vec<(&SubscriptionInfo, &str)> = state
+                let mut subscriptions: Vec<((ProductType, &SubscriptionInfo), &str)> = state
                     .subscriptions
                     .iter()
-                    .filter_map(|s| {
-                        if let Some(key) = s.key.as_ref() {
-                            if let Ok(product) = key[..3].parse::<ProductType>() {
-                                if product == ProductType::Pom {
-                                    return None;
-                                } else {
-                                    return Some((s, key.as_str()));
-                                }
-                            }
-                        }
-                        None
+                    .filter(|sub| sub.serverid.as_ref() == Some(&server_id))
+                    .filter_map(|sub| {
+                        sub.get_product_type()
+                            .ok()
+                            .and_then(|prod| Some(((prod, sub), sub.key.as_ref()?.as_str())))
                     })
+                    .filter(|((found_product, _), _)| found_product != &ProductType::Pom)
                     .collect();
 
+                subscriptions.sort_by(|((prod_a, sub_a), _), ((prod_b, sub_b), _)| {
+                    if prod_a == prod_b {
+                        return sub_b
+                            .get_next_due_date()
+                            .ok()
+                            .cmp(&sub_a.get_next_due_date().ok());
+                    }
+
+                    prod_a.cmp(prod_b)
+                });
+
                 if subscriptions.is_empty() {
-                    println!(
-                        "No matching subscription key found for server ID '{}'",
-                        server_id
-                    );
+                    println!("No matching subscription key found for server ID '{server_id}'");
                 } else {
-                    let info = read_selection_from_tty("Select key", &subscriptions, None)?;
-                    // safe unwrap, checked above!
-                    let product: ProductType = info.key.as_ref().unwrap()[..3].parse()?;
+                    let (product, info) =
+                        read_selection_from_tty("Select key", &subscriptions, None)?;
                     set_subscription_key(product, info)?;
                 }
             }
@@ -265,6 +267,7 @@ async fn setup(_param: Value) -> Result<(), Error> {
             },
             product: {
                 type: ProductType,
+                optional: true,
             },
         },
     },
@@ -272,10 +275,10 @@ async fn setup(_param: Value) -> Result<(), Error> {
 /// Configures and offline subscription key
 async fn setup_offline_key(
     mountpoint: String,
-    product: ProductType,
+    product: Option<ProductType>,
     _param: Value,
 ) -> Result<(), Error> {
-    if product == ProductType::Pom {
+    if product == Some(ProductType::Pom) {
         param_bail!(
             "product",
             format_err!("Proxmox Offline Mirror does not support offline operations.")
@@ -299,27 +302,41 @@ async fn setup_offline_key(
     );
 
     let server_id = proxmox_subscription::get_hardware_address()?;
-    let subscription = state.subscriptions.iter().find(|s| {
-        if let Some(key) = s.key.as_ref() {
-            if let Ok(found_product) = key[..3].parse::<ProductType>() {
-                return product == found_product;
-            }
-        }
-        false
-    });
 
-    match subscription {
-        Some(subscription) => {
-            eprintln!("Setting offline subscription key for {product}..");
-            match set_subscription_key(product, subscription) {
-                Ok(output) if !output.is_empty() => eprintln!("success: {output}"),
-                Ok(_) => eprintln!("success."),
-                Err(err) => eprintln!("error: {err}"),
+    let subscriptions: HashMap<ProductType, &SubscriptionInfo> = state
+        .subscriptions
+        .iter()
+        .filter(|sub| sub.serverid.as_ref() == Some(&server_id))
+        .filter_map(|sub| sub.get_product_type().ok().map(|prod| (prod, sub)))
+        .filter(|(found_product, _)| {
+            (product.is_none() || Some(found_product) == product.as_ref())
+                && found_product != &ProductType::Pom
+        })
+        .fold(HashMap::new(), |mut map, (found_product, sub)| {
+            if let Some(existing) = map.get(&found_product) {
+                if existing.get_next_due_date().ok() < sub.get_next_due_date().ok() {
+                    map.insert(found_product, sub);
+                }
+            } else {
+                map.insert(found_product, sub);
             }
-            Ok(())
-        }
-        None => bail!("No matching subscription key found for product '{product}' and server ID '{server_id}'"),
+            map
+        });
+
+    if subscriptions.is_empty() {
+        bail!("No matching subscription key found for server ID '{server_id}'");
     }
+
+    for (product, subscription) in subscriptions {
+        eprintln!("Setting offline subscription key for {product}...");
+        match set_subscription_key(&product, subscription) {
+            Ok(output) if !output.is_empty() => eprintln!("success: {output}"),
+            Ok(_) => eprintln!("success."),
+            Err(err) => eprintln!("error: {err}"),
+        }
+    }
+
+    Ok(())
 }
 
 #[api(
