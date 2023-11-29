@@ -179,8 +179,8 @@ fn derive_debian_repo(
         (Release::Bookworm, DebianVariant::Security) => {
             "/usr/share/keyrings/debian-archive-bookworm-security-automatic.gpg"
         }
-        (Release::Bookworm, DebianVariant::Updates) |
-        (Release::Bookworm, DebianVariant::Backports) => {
+        (Release::Bookworm, DebianVariant::Updates)
+        | (Release::Bookworm, DebianVariant::Backports) => {
             "/usr/share/keyrings/debian-archive-bookworm-automatic.gpg"
         }
         (Release::Bookworm, _) => "/usr/share/keyrings/debian-archive-bookworm-stable.gpg",
@@ -239,13 +239,11 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
                 let default_components = match release {
                     Release::Bookworm => "main contrib non-free non-free-firmware",
-                    _ => "main contrib non-free"
+                    _ => "main contrib non-free",
                 };
 
-                let components = read_string_from_tty(
-                    "Enter repository components",
-                    Some(default_components),
-                )?;
+                let components =
+                    read_string_from_tty("Enter repository components", Some(default_components))?;
 
                 derive_debian_repo(release, variant, &components)?
             }
