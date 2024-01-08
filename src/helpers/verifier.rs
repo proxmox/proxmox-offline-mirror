@@ -107,7 +107,7 @@ pub(crate) fn verify_signature<'msg>(
             policy.accept_asymmetric_algo(sequoia_openpgp::policy::AsymmetricAlgorithm::DSA1024);
         }
     }
-    if let Some(min_rsa) = weak_crypto.min_dsa_key_size {
+    if let Some(min_rsa) = weak_crypto.min_rsa_key_size {
         if min_rsa <= 1024 {
             policy.accept_asymmetric_algo(sequoia_openpgp::policy::AsymmetricAlgorithm::RSA1024);
         }
