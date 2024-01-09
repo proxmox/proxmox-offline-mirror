@@ -1,3 +1,17 @@
+rust-proxmox-offline-mirror (0.6.4) bookworm; urgency=medium
+
+  * helper: improve handling of multiple keys when activating them
+
+  * docs: add an auto dark mode to the docs
+
+  * weak crypto: actually honor RSA config option
+
+  * docs: offline-media: Use correct config subcommand
+
+  * minor code cleanup
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 09 Jan 2024 09:33:28 +0100
+
 rust-proxmox-offline-mirror (0.6.3) bookworm; urgency=medium
 
   * add non-free-firmware to bookworm default components
