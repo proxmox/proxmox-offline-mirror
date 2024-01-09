@@ -452,7 +452,7 @@ fn fetch_plain_file(
 pub fn init(config: &MirrorConfig) -> Result<(), Error> {
     let pool_dir = PathBuf::from(&config.base_dir).join(".pool");
 
-    let dir = PathBuf::from(&config.base_dir).join(&config.id);
+    let dir = mirror_dir(config);
 
     Pool::create(&dir, &pool_dir)?;
     Ok(())
