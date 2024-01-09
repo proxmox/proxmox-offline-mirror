@@ -5,6 +5,7 @@ authors = ["Proxmox Support Team <support@proxmox.com>"]
 edition = "2021"
 license = "AGPL-3"
 description = "Proxmox offline repository mirror and subscription key manager"
+rust-version = "1.70"
 
 exclude = ["debian"]
 
