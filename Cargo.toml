@@ -32,6 +32,6 @@ proxmox-router = { version = "2", features = [ "cli" ], default_features = false
 proxmox-schema = { version = "2", features = [ "api-macro" ] }
 proxmox-section-config = "2"
 proxmox-serde = "0.1"
-proxmox-subscription = { version = "0.4", features = [ "api-types" ] }
+proxmox-subscription = { version = "0.4.2", features = [ "api-types" ] }
 proxmox-sys = { version = "0.5", features = [ "timer" ] }
 proxmox-time = { version = "1.1.5" }
