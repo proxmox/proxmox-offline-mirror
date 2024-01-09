@@ -71,7 +71,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Proxmox Offline Mirror'
-copyright = '2022, Proxmox Server Solutions GmbH'
+copyright = '2022 - 2024, Proxmox Server Solutions GmbH'
 author = 'Proxmox Support Team'
 
 # The version info for the project you're documenting, acts as a replacement for
