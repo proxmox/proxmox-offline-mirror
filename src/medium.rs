@@ -140,7 +140,7 @@ fn load_state(base: &Path) -> Result<Option<MediumState>, Error> {
 // Helper to write statefile
 fn write_state(_lock: &ConfigLockGuard, base: &Path, state: &MediumState) -> Result<(), Error> {
     replace_file(
-        &statefile(base),
+        statefile(base),
         &serde_json::to_vec(&state)?,
         CreateOptions::default(),
         true,

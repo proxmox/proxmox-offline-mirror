@@ -76,7 +76,7 @@ impl Pool {
     pub(crate) fn lock(&self) -> Result<PoolLockGuard, Error> {
         let timeout = std::time::Duration::new(30, 0);
         let lock = Some(proxmox_sys::fs::open_file_locked(
-            &self.lock_path(),
+            self.lock_path(),
             timeout,
             true,
             CreateOptions::default(),
