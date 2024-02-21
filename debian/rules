@@ -14,6 +14,9 @@ export CARGO_HOME = $(CURDIR)/debian/cargo_home
 export DEB_CARGO_CRATE=proxmox-offline-mirror_$(DEB_VERSION_UPSTREAM)
 export DEB_CARGO_PACKAGE=proxmox-offline-mirror
 
+# for docs build
+export DEB_VERSION DEB_VERSION_UPSTREAM
+
 %:
 	dh $@ --with=bash-completion
 
