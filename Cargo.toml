@@ -26,7 +26,7 @@ sequoia-openpgp = { version = "1.12" }
 walkdir = "2.3.1"
 xz2 = "0.1"
 
-proxmox-apt = { version = "0.10.3" }
+proxmox-apt = { version = "0.10.9" }
 proxmox-async = "0.4"
 proxmox-http = { version = "0.9", features = [ "client-sync", "client-trait" ]}
 proxmox-router = { version = "2", features = [ "cli" ], default_features = false }
