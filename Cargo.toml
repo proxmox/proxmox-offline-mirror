@@ -35,4 +35,4 @@ proxmox-section-config = "2"
 proxmox-serde = "0.1"
 proxmox-subscription = { version = "0.4.2", features = [ "api-types" ] }
 proxmox-sys = { version = "0.5", features = [ "timer" ] }
-proxmox-time = { version = "1.1.5" }
+proxmox-time = "2"
