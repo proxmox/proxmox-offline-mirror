@@ -451,6 +451,7 @@ impl PoolLockGuard<'_> {
     /// Run a garbage collection, removing
     /// - any checksum files that have no links outside of `pool_dir`
     /// - any files in `link_dir` that have no corresponding checksum files
+    /// - any empty directories below `link_dir` remaining after the file removal
     pub(crate) fn gc(&self) -> Result<(usize, u64), Error> {
         let (inode_map, _link_count) = self.get_inode_csum_map()?;
 
@@ -459,7 +460,8 @@ impl PoolLockGuard<'_> {
 
         let handle_entry = |entry: Result<walkdir::DirEntry, walkdir::Error>,
                             count: &mut usize,
-                            size: &mut u64|
+                            size: &mut u64,
+                            remove_empty_dir: bool|
          -> Result<(), Error> {
             let path = entry?.into_path();
             if path == self.lock_path() {
@@ -467,6 +469,10 @@ impl PoolLockGuard<'_> {
             }
 
             let meta = path.metadata()?;
+            if remove_empty_dir && meta.is_dir() && path.read_dir()?.next().is_none() {
+                std::fs::remove_dir(path)?;
+                return Ok(());
+            }
             if !meta.is_file() {
                 return Ok(());
             };
@@ -507,11 +513,12 @@ impl PoolLockGuard<'_> {
         };
 
         WalkDir::new(&self.pool.link_dir)
+            .contents_first(true)
             .into_iter()
-            .try_for_each(|entry| handle_entry(entry, &mut count, &mut size))?;
+            .try_for_each(|entry| handle_entry(entry, &mut count, &mut size, true))?;
         WalkDir::new(&self.pool.pool_dir)
             .into_iter()
-            .try_for_each(|entry| handle_entry(entry, &mut count, &mut size))?;
+            .try_for_each(|entry| handle_entry(entry, &mut count, &mut size, false))?;
 
         Ok((count, size))
     }
