@@ -265,9 +265,6 @@ impl PoolLockGuard<'_> {
 
         for link_entry in WalkDir::new(&self.pool.link_dir).into_iter() {
             let path = link_entry?.into_path();
-            if self.path_in_pool(&path) {
-                continue;
-            };
 
             let meta = path.metadata()?;
             if !meta.is_file() {
