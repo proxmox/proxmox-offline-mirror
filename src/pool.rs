@@ -428,11 +428,11 @@ impl PoolLockGuard<'_> {
         while let Some(parent) = path.parent() {
             path = parent;
 
-            if !self.pool.path_in_link_dir(path) || !path.is_empty() {
+            if !self.pool.path_in_link_dir(path) || path.read_dir()?.next().is_some() {
                 break;
             }
 
-            remove_dir(path)?;
+            std::fs::remove_dir(path)?;
         }
 
         Ok(())
