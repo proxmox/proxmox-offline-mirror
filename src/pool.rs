@@ -1,14 +1,14 @@
 use std::{
     cmp::max,
     collections::{hash_map::Entry, HashMap},
-    fs::{hard_link, remove_dir, File, Metadata},
+    fs::{hard_link, File, Metadata},
     ops::Deref,
     os::linux::fs::MetadataExt,
     path::{Path, PathBuf},
 };
 
 use anyhow::{bail, format_err, Error};
-use nix::{unistd, NixPath};
+use nix::unistd;
 
 use proxmox_apt::deb822::CheckSums;
 use proxmox_sys::fs::{create_path, file_get_contents, replace_file, CreateOptions};
