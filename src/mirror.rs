@@ -20,13 +20,12 @@ use crate::{
     types::{Diff, Snapshot, SNAPSHOT_REGEX},
     FetchResult, Progress,
 };
-use proxmox_apt::{
-    deb822::{
-        CheckSums, CompressionType, FileReference, FileReferenceType, PackagesFile, ReleaseFile,
-        SourcesFile,
-    },
-    repositories::{APTRepository, APTRepositoryPackageType},
+
+use proxmox_apt::deb822::{
+    CheckSums, CompressionType, FileReference, FileReferenceType, PackagesFile, ReleaseFile,
+    SourcesFile,
 };
+use proxmox_apt_api_types::{APTRepository, APTRepositoryPackageType};
 
 use crate::helpers;
 

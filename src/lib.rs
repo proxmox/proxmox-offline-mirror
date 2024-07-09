@@ -16,7 +16,8 @@ use std::{
 
 use anyhow::{format_err, Error};
 use medium::MirrorInfo;
-use proxmox_apt::repositories::{APTRepository, APTRepositoryFile, APTRepositoryFileType};
+use proxmox_apt::repositories::{APTRepositoryFileImpl, APTRepositoryImpl};
+use proxmox_apt_api_types::{APTRepository, APTRepositoryFile, APTRepositoryFileType};
 use types::Snapshot;
 
 /// Main configuration file containing definitions of mirrors, external media and subscription keys.
@@ -140,7 +141,7 @@ pub fn generate_repo_file_line(
     repo.uris = vec![format!("file://{}", snapshot_path)];
 
     repo.options
-        .push(proxmox_apt::repositories::APTRepositoryOption {
+        .push(proxmox_apt_api_types::APTRepositoryOption {
             key: "check-valid-until".to_string(),
             values: vec!["false".to_string()],
         });
