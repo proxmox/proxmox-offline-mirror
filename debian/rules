@@ -35,6 +35,9 @@ override_dh_auto_test:
 	# skip for now to avoid additional debug builds - no tests anyway
 	# dh_auto_test -- test --all
 
+execute_after_dh_auto_install:
+	/usr/share/cargo/bin/dh-cargo-built-using $(DEB_CARGO_PACKAGE)
+
 override_dh_missing:
 	dh_missing --fail-missing
 
