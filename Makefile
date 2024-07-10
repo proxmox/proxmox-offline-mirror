@@ -19,9 +19,14 @@ DEBS = $(DEB) $(HELPER_DEB) $(DBG_DEB) $(HELPER_DBG_DEB) $(DOC_DEB)
 ifeq ($(BUILD_MODE), release)
 CARGO_BUILD_ARGS += --release
 COMPILEDIR := target/release
+else ifeq ($(BUILD_MODE), release-deb)
+CARGO_BUILD_ARGS += --release
+COMPILEDIR := target/$(DEB_HOST_RUST_TYPE)/release
 else
 COMPILEDIR := target/debug
 endif
+
+CARGO ?= cargo
 
 USR_BIN := \
 	proxmox-offline-mirror \
@@ -34,7 +39,7 @@ all: cargo-build $(SUBDIRS)
 
 .PHONY: cargo-build
 cargo-build:
-	cargo build $(CARGO_BUILD_ARGS)
+	$(CARGO) build $(CARGO_BUILD_ARGS)
 
 .PHONY: $(SUBDIRS)
 $(SUBDIRS): cargo-build
@@ -98,7 +103,7 @@ distclean: clean
 
 .PHONY: clean
 clean:
-	cargo clean
+	$(CARGO) clean
 	rm -f *.deb *.build *.buildinfo *.changes *.dsc rust-$(PACKAGE)*.tar*
 	rm -rf $(PACKAGE)-[0-9]*/
 	find . -name '*~' -exec rm {} ';'

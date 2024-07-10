@@ -21,10 +21,10 @@ SPHINXBUILD   = sphinx-build
 BUILDDIR      = output
 
 ifeq ($(BUILD_MODE), release)
-COMPILEDIR := ../target/release
+COMPILEDIR := ../target/$release
 SPHINXOPTS    += -t release
 else ifeq ($(BUILD_MODE), release-deb)
-COMPILEDIR := ../target/$(DEB_TARGET_GNU_CPU)-unknown-$(DEB_TARGET_GNU_SYSTEM)/release
+COMPILEDIR := ../target/$(DEB_HOST_RUST_TYPE)/release
 SPHINXOPTS    += -t release
 else
 COMPILEDIR := ../target/debug
