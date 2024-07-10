@@ -210,7 +210,7 @@ async fn add_mirror_key(config: Option<String>, key: String, _param: Value) -> R
 
     let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
 
-    if section_config.sections.get(&key).is_some() {
+    if section_config.sections.contains_key(&key) {
         param_bail!(
             "key",
             "key entry for '{}' already exists - did you mean to update or refresh?",
@@ -289,7 +289,7 @@ async fn add_key(
 
     let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
 
-    if section_config.sections.get(&data.key).is_some() {
+    if section_config.sections.contains_key(&data.key) {
         param_bail!(
             "key",
             "key entry for '{}' already exists - did you mean to update or refresh?",

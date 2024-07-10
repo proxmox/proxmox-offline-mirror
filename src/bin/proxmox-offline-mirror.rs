@@ -432,12 +432,11 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
             (Some(ProductType::Pmg), "PMG"),
             (None, "None"),
         ];
-        use_subscription = read_selection_from_tty(
+        use_subscription.clone_from(read_selection_from_tty(
             "Does this repository require a valid Proxmox subscription key",
             subscription_products,
             None,
-        )?
-        .clone();
+        )?);
 
         (repo, key_path, architectures, None, SkipConfig::default())
     };
@@ -707,7 +706,7 @@ fn action_add_key(config: &SectionConfigData) -> Result<SubscriptionKey, Error> 
     };
 
     let key = read_string_from_tty("Please enter subscription key", None)?;
-    if config.sections.get(&key).is_some() {
+    if config.sections.contains_key(&key) {
         bail!("Key entry for '{key}' already exists - please use 'key refresh' or 'key update'!");
     }
 

@@ -147,7 +147,7 @@ async fn add_mirror(
 
     let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
 
-    if section_config.sections.get(&data.id).is_some() {
+    if section_config.sections.contains_key(&data.id) {
         param_bail!("name", "mirror config entry '{}' already exists.", data.id);
     }
 
@@ -391,7 +391,7 @@ async fn add_medium(
 
     let (mut section_config, _digest) = proxmox_offline_mirror::config::config(&config)?;
 
-    if section_config.sections.get(&data.id).is_some() {
+    if section_config.sections.contains_key(&data.id) {
         param_bail!("name", "config section '{}' already exists.", data.id);
     }
 
