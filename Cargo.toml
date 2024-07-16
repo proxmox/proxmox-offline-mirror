@@ -35,5 +35,5 @@ proxmox-schema = { version = "3", features = [ "api-macro" ] }
 proxmox-section-config = "2"
 proxmox-serde = "0.1"
 proxmox-subscription = { version = "0.4.2", features = [ "api-types" ] }
-proxmox-sys = { version = "0.5", features = [ "timer" ] }
+proxmox-sys = { version = "0.6", features = [ "timer" ] }
 proxmox-time = "2"
