@@ -1,12 +1,13 @@
-use anyhow::{bail, Error};
+use anyhow::{bail, format_err, Error};
 
 use sequoia_openpgp::{
+    cert::CertParser,
     parse::{
         stream::{
             DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationError,
             VerificationHelper, VerifierBuilder,
         },
-        Parse,
+        PacketParser, PacketParserResult, Parse,
     },
     policy::StandardPolicy,
     types::HashAlgorithm,
@@ -96,8 +97,6 @@ pub(crate) fn verify_signature(
     detached_sig: Option<&[u8]>,
     weak_crypto: &WeakCryptoConfig,
 ) -> Result<Vec<u8>, Error> {
-    let cert = Cert::from_bytes(key)?;
-
     let mut policy = StandardPolicy::new();
     if weak_crypto.allow_sha1 {
         policy.accept_hash(HashAlgorithm::SHA1);
@@ -113,23 +112,55 @@ pub(crate) fn verify_signature(
         }
     }
 
-    let helper = Helper { cert: &cert };
+    let verifier = |cert| {
+        let helper = Helper { cert: &cert };
 
-    let verified = if let Some(sig) = detached_sig {
-        let mut verifier =
-            DetachedVerifierBuilder::from_bytes(sig)?.with_policy(&policy, None, helper)?;
-        verifier.verify_bytes(msg)?;
-        msg.to_vec()
-    } else {
-        let mut verified = Vec::new();
-        let mut verifier = VerifierBuilder::from_bytes(msg)?.with_policy(&policy, None, helper)?;
-        let bytes = io::copy(&mut verifier, &mut verified)?;
-        println!("{bytes} bytes verified");
-        if !verifier.message_processed() {
-            bail!("Failed to verify message!");
+        if let Some(sig) = detached_sig {
+            let mut verifier =
+                DetachedVerifierBuilder::from_bytes(sig)?.with_policy(&policy, None, helper)?;
+            verifier.verify_bytes(msg)?;
+            Ok(msg.to_vec())
+        } else {
+            let mut verified = Vec::new();
+            let mut verifier =
+                VerifierBuilder::from_bytes(msg)?.with_policy(&policy, None, helper)?;
+            let bytes = io::copy(&mut verifier, &mut verified)?;
+            println!("{bytes} bytes verified");
+            if !verifier.message_processed() {
+                bail!("Failed to verify message!");
+            }
+            Ok(verified)
         }
-        verified
     };
 
-    Ok(verified)
+    let mut packed_parser = PacketParser::from_bytes(key)?;
+
+    // parse all packets to see whether this is a simple certificate or a keyring
+    while let PacketParserResult::Some(pp) = packed_parser {
+        packed_parser = pp.recurse()?.1;
+    }
+
+    if let PacketParserResult::EOF(eof) = packed_parser {
+        // verify against a single certificate
+        if eof.is_cert().is_ok() {
+            let cert = Cert::from_bytes(key)?;
+            return verifier(cert);
+        // verify against a keyring
+        } else if eof.is_keyring().is_ok() {
+            let packed_parser = PacketParser::from_bytes(key)?;
+
+            return CertParser::from(packed_parser)
+                // flatten here as we ignore packets that aren't a certificate
+                .flatten()
+                // keep trying to verify the message until the first certificate that succeeds
+                .find_map(|c| verifier(c).ok())
+                // if no certificate verified the message, abort
+                .ok_or_else(|| format_err!("No key in keyring could verify the message!"));
+        }
+    }
+
+    // neither a keyring nor a certificate was detect, so we abort here
+    Err(format_err!(
+        "'key-path' contains neither a keyring nor a certificate, aborting!"
+    ))
 }
