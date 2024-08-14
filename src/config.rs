@@ -1,7 +1,7 @@
 use std::path::Path;
+use std::sync::LazyLock;
 
 use anyhow::{bail, Error};
-use lazy_static::lazy_static;
 use proxmox_subscription::{sign::ServerBlob, SubscriptionInfo};
 use serde::{Deserialize, Serialize};
 
@@ -261,9 +261,7 @@ impl SubscriptionKey {
     }
 }
 
-lazy_static! {
-    pub static ref CONFIG: SectionConfig = init();
-}
+pub static CONFIG: LazyLock<SectionConfig> = LazyLock::new(init);
 
 fn init() -> SectionConfig {
     let mut config = SectionConfig::new(&MIRROR_ID_SCHEMA);
