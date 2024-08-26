@@ -32,7 +32,7 @@ To sync the local mirrors to a medium, the following command can be used:
 
 .. code-block:: console
 
-  proxmox-offline-mirror medium sync --id pve-bookworm
+  proxmox-offline-mirror medium sync pve-bookworm
 
 This command will sync all mirrors linked with this medium to the medium's mount point.
 Additionally, it will sync all offline keys for further processing by
