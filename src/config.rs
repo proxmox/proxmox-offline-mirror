@@ -304,6 +304,7 @@ fn init() -> SectionConfig {
 /// Lock guard for guarding modifications of config file.
 ///
 /// Obtained via [lock_config], should only be dropped once config file should no longer be locked.
+#[allow(dead_code)]
 pub struct ConfigLockGuard(std::fs::File);
 
 /// Get exclusive lock for config file (in order to make or protect against modifications).
