@@ -5,7 +5,7 @@ use anyhow::{bail, Error};
 use proxmox_subscription::{sign::ServerBlob, SubscriptionInfo};
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, ApiStringFormat, ApiType, Schema, Updater};
+use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 use proxmox_subscription::ProductType;
 use proxmox_sys::fs::{replace_file, CreateOptions};
@@ -266,33 +266,24 @@ pub static CONFIG: LazyLock<SectionConfig> = LazyLock::new(init);
 fn init() -> SectionConfig {
     let mut config = SectionConfig::new(&MIRROR_ID_SCHEMA);
 
-    let mirror_schema = match MirrorConfig::API_SCHEMA {
-        Schema::AllOf(ref all_of_schema) => all_of_schema,
-        _ => unreachable!(),
-    };
     let mirror_plugin = SectionConfigPlugin::new(
         "mirror".to_string(),
         Some(String::from("id")),
-        mirror_schema,
+        const { MirrorConfig::API_SCHEMA.unwrap_any_object_schema() },
     );
     config.register_plugin(mirror_plugin);
 
-    let media_schema = match MediaConfig::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
-        _ => unreachable!(),
-    };
-    let media_plugin =
-        SectionConfigPlugin::new("medium".to_string(), Some(String::from("id")), media_schema);
+    let media_plugin = SectionConfigPlugin::new(
+        "medium".to_string(),
+        Some(String::from("id")),
+        const { MediaConfig::API_SCHEMA.unwrap_any_object_schema() },
+    );
     config.register_plugin(media_plugin);
 
-    let key_schema = match SubscriptionKey::API_SCHEMA {
-        Schema::Object(ref obj_schema) => obj_schema,
-        _ => unreachable!(),
-    };
     let key_plugin = SectionConfigPlugin::new(
         "subscription".to_string(),
         Some(String::from("key")),
-        key_schema,
+        const { SubscriptionKey::API_SCHEMA.unwrap_any_object_schema() },
     );
     config.register_plugin(key_plugin);
 
