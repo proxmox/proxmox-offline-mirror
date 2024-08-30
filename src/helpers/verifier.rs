@@ -160,7 +160,5 @@ pub(crate) fn verify_signature(
     }
 
     // neither a keyring nor a certificate was detect, so we abort here
-    Err(format_err!(
-        "'key-path' contains neither a keyring nor a certificate, aborting!"
-    ))
+    bail!("'key-path' contains neither a keyring nor a certificate, aborting!");
 }
