@@ -1,3 +1,15 @@
+rust-proxmox-offline-mirror (0.6.7) bookworm; urgency=medium
+
+  * pool: fix check for empty directory when unlinking files
+
+  * pool gc: remove empty left-over directories
+
+  * add ability to verify with keyrings, not just single certificates
+
+  * docs: fix command arguments for syncing a medium
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Sep 2024 17:50:35 +0200
+
 rust-proxmox-offline-mirror (0.6.6) bookworm; urgency=medium
 
   * fix #5249: apt: allow parsing Packages without Priority field
