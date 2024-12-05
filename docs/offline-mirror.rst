@@ -82,6 +82,17 @@ Some examples for packages and section filters:
 - `--skip-sections 'games'` - filter sections containing game packages
 - `--skip-sections 'debug'` - filter sections containing debug information
 
+If you want to skip all debugging related packages (which might not always be
+in the `debug` section mentioned in the example above), the following set of
+filters should work:
+
+.. code-block::
+
+ --skip-packages *-dbgsym \
+ --skip-packages *-dbg \
+ --skip-packages *-debug \
+ --skip-sections debug
+
 Please refer to https://packages.debian.org/bookworm/ for a list of Debian archive sections and
 their contents.
 
