@@ -21,7 +21,7 @@ struct Helper<'a> {
     cert: &'a Cert,
 }
 
-impl<'a> VerificationHelper for Helper<'a> {
+impl VerificationHelper for Helper<'_> {
     fn get_certs(&mut self, _ids: &[KeyHandle]) -> sequoia_openpgp::Result<Vec<Cert>> {
         // Return public keys for signature verification here.
         Ok(vec![self.cert.clone()])
