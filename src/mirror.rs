@@ -539,7 +539,7 @@ fn fetch_binary_packages(
         let mut skip_bytes = 0usize;
 
         for package in references.files {
-            if let Some(ref sections) = &config.skip.skip_sections {
+            if let Some(sections) = &config.skip.skip_sections {
                 if sections.iter().any(|section| {
                     package.section == *section
                         || package.section == format!("{component}/{section}")
@@ -654,7 +654,7 @@ fn fetch_source_packages(
         let mut skip_count = 0usize;
         let mut skip_bytes = 0usize;
         for package in references.source_packages {
-            if let Some(ref sections) = &config.skip.skip_sections {
+            if let Some(sections) = &config.skip.skip_sections {
                 if sections.iter().any(|section| {
                     package.section.as_ref() == Some(section)
                         || package.section == Some(format!("{component}/{section}"))
