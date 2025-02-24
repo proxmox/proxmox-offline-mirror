@@ -1,11 +1,11 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 
 use proxmox_http::client::sync::Client;
 use proxmox_http::{HttpClient, HttpOptions, ProxyConfig};
 use proxmox_subscription::SubscriptionStatus;
 use proxmox_subscription::{
-    sign::{SignRequest, SignedResponse},
     ProductType, SubscriptionInfo,
+    sign::{SignRequest, SignedResponse},
 };
 
 use crate::config::SubscriptionKey;

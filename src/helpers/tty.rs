@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use proxmox_schema::parse_boolean;
 
 /// Prints `query`, reads string from terminal, defaulting to `default`.

@@ -14,7 +14,7 @@ use proxmox_offline_mirror::{
     generate_repo_file_line,
     medium::{self},
     mirror,
-    types::{Snapshot, MEDIA_ID_SCHEMA},
+    types::{MEDIA_ID_SCHEMA, Snapshot},
 };
 
 use super::get_config_path;

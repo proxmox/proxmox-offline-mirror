@@ -5,11 +5,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use nix::libc;
 use openssl::sha::sha256;
 use proxmox_subscription::SubscriptionInfo;
-use proxmox_sys::fs::{file_get_contents, replace_file, CreateOptions};
+use proxmox_sys::fs::{CreateOptions, file_get_contents, replace_file};
 use proxmox_time::{epoch_i64, epoch_to_rfc3339_utc};
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ use crate::{
     generate_repo_file_line,
     mirror::pool,
     pool::Pool,
-    types::{Diff, Snapshot, SNAPSHOT_REGEX},
+    types::{Diff, SNAPSHOT_REGEX, Snapshot},
 };
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -420,13 +420,17 @@ pub fn sync(
         if mirror_base.exists() {
             match pools.get(&dropped) {
                 Some(pool) => {
-                    println!("Removing previously synced, but no longer configured mirror '{dropped}'..");
+                    println!(
+                        "Removing previously synced, but no longer configured mirror '{dropped}'.."
+                    );
                     let mut pool_dir = medium_base.to_path_buf();
                     pool_dir.push(pool);
                     let pool = Pool::open(&mirror_base, &pool_dir)?;
                     pool.lock()?.destroy()?;
-                },
-                None => bail!("No pool information for previously synced, but no longer configured mirror '{dropped}'"),
+                }
+                None => bail!(
+                    "No pool information for previously synced, but no longer configured mirror '{dropped}'"
+                ),
             }
         }
     }

@@ -1,4 +1,4 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 
 use proxmox_section_config::SectionConfigData;
 use proxmox_subscription::SubscriptionStatus;
@@ -9,15 +9,15 @@ use std::{
 };
 
 use proxmox_router::cli::{
-    format_and_print_result, get_output_format, CliCommand, CliCommandMap, CommandLineInterface,
-    OUTPUT_FORMAT,
+    CliCommand, CliCommandMap, CommandLineInterface, OUTPUT_FORMAT, format_and_print_result,
+    get_output_format,
 };
 use proxmox_schema::api;
 
 use proxmox_offline_mirror::{
     config::{MirrorConfig, SubscriptionKey},
     mirror,
-    types::{Snapshot, MIRROR_ID_SCHEMA},
+    types::{MIRROR_ID_SCHEMA, Snapshot},
 };
 
 use super::get_config_path;

@@ -3,26 +3,26 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{collections::HashMap, path::Path};
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 
 use proxmox_offline_mirror::types::Snapshot;
 use proxmox_subscription::{ProductType, SubscriptionInfo};
 use proxmox_sys::command::run_command;
 use proxmox_sys::fs::file_get_contents;
-use proxmox_sys::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{CreateOptions, replace_file};
 use proxmox_time::epoch_to_rfc3339_utc;
 use serde_json::Value;
 
 use proxmox_router::cli::{
-    format_and_print_result, get_output_format, run_cli_command, CliCommand, CliCommandMap,
-    CliEnvironment, OUTPUT_FORMAT,
+    CliCommand, CliCommandMap, CliEnvironment, OUTPUT_FORMAT, format_and_print_result,
+    get_output_format, run_cli_command,
 };
 use proxmox_schema::{api, param_bail};
 
 use proxmox_offline_mirror::helpers::tty::{
     read_bool_from_tty, read_selection_from_tty, read_string_from_tty,
 };
-use proxmox_offline_mirror::medium::{self, generate_repo_snippet, MediumState};
+use proxmox_offline_mirror::medium::{self, MediumState, generate_repo_snippet};
 
 fn set_subscription_key(
     product: &ProductType,
@@ -211,7 +211,9 @@ async fn setup(_param: Value) -> Result<(), Error> {
                     file.push(snippet_file_name);
                     replace_file(file, data.as_bytes(), CreateOptions::default(), true)?;
                 } else {
-                    println!("Add above snippet to system's repository entries (/etc/apt/sources.list.d/) manually to configure.");
+                    println!(
+                        "Add above snippet to system's repository entries (/etc/apt/sources.list.d/) manually to configure."
+                    );
                 }
 
                 println!("Now run 'apt update && apt full-upgrade' to upgrade system.");

@@ -3,12 +3,12 @@ use std::io::IsTerminal;
 use std::matches;
 use std::path::Path;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use proxmox_offline_mirror::config::SubscriptionKey;
 use proxmox_offline_mirror::subscription::{extract_mirror_key, refresh_mirror_key};
 use serde_json::Value;
 
-use proxmox_router::cli::{run_cli_command, CliCommand, CliCommandMap, CliEnvironment};
+use proxmox_router::cli::{CliCommand, CliCommandMap, CliEnvironment, run_cli_command};
 use proxmox_schema::api;
 use proxmox_section_config::SectionConfigData;
 use proxmox_subscription::ProductType;
@@ -17,7 +17,7 @@ use proxmox_offline_mirror::helpers::tty::{
     read_bool_from_tty, read_selection_from_tty, read_string_from_tty,
 };
 use proxmox_offline_mirror::{
-    config::{save_config, MediaConfig, MirrorConfig, SkipConfig},
+    config::{MediaConfig, MirrorConfig, SkipConfig, save_config},
     mirror,
     types::{MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA},
 };
@@ -350,15 +350,33 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
                 // TODO enterprise query for key!
                 let url = match (release, variant) {
-                    (Release::Bookworm, ProxmoxVariant::Enterprise) => format!("https://enterprise.proxmox.com/debian/{product} bookworm {product}-enterprise"),
-                    (Release::Bookworm, ProxmoxVariant::NoSubscription) => format!("http://download.proxmox.com/debian/{product} bookworm {product}-no-subscription"),
-                    (Release::Bookworm, ProxmoxVariant::Test) => format!("http://download.proxmox.com/debian/{product} bookworm {product}test"),
-                    (Release::Bullseye, ProxmoxVariant::Enterprise) => format!("https://enterprise.proxmox.com/debian/{product} bullseye {product}-enterprise"),
-                    (Release::Bullseye, ProxmoxVariant::NoSubscription) => format!("http://download.proxmox.com/debian/{product} bullseye {product}-no-subscription"),
-                    (Release::Bullseye, ProxmoxVariant::Test) => format!("http://download.proxmox.com/debian/{product} bullseye {product}test"),
-                    (Release::Buster, ProxmoxVariant::Enterprise) => format!("https://enterprise.proxmox.com/debian/{product} buster {product}-enterprise"),
-                    (Release::Buster, ProxmoxVariant::NoSubscription) => format!("http://download.proxmox.com/debian/{product} buster {product}-no-subscription"),
-                    (Release::Buster, ProxmoxVariant::Test) => format!("http://download.proxmox.com/debian/{product} buster {product}test"),
+                    (Release::Bookworm, ProxmoxVariant::Enterprise) => format!(
+                        "https://enterprise.proxmox.com/debian/{product} bookworm {product}-enterprise"
+                    ),
+                    (Release::Bookworm, ProxmoxVariant::NoSubscription) => format!(
+                        "http://download.proxmox.com/debian/{product} bookworm {product}-no-subscription"
+                    ),
+                    (Release::Bookworm, ProxmoxVariant::Test) => format!(
+                        "http://download.proxmox.com/debian/{product} bookworm {product}test"
+                    ),
+                    (Release::Bullseye, ProxmoxVariant::Enterprise) => format!(
+                        "https://enterprise.proxmox.com/debian/{product} bullseye {product}-enterprise"
+                    ),
+                    (Release::Bullseye, ProxmoxVariant::NoSubscription) => format!(
+                        "http://download.proxmox.com/debian/{product} bullseye {product}-no-subscription"
+                    ),
+                    (Release::Bullseye, ProxmoxVariant::Test) => format!(
+                        "http://download.proxmox.com/debian/{product} bullseye {product}test"
+                    ),
+                    (Release::Buster, ProxmoxVariant::Enterprise) => format!(
+                        "https://enterprise.proxmox.com/debian/{product} buster {product}-enterprise"
+                    ),
+                    (Release::Buster, ProxmoxVariant::NoSubscription) => format!(
+                        "http://download.proxmox.com/debian/{product} buster {product}-no-subscription"
+                    ),
+                    (Release::Buster, ProxmoxVariant::Test) => {
+                        format!("http://download.proxmox.com/debian/{product} buster {product}test")
+                    }
                 };
 
                 use_subscription = match (product, variant) {
@@ -442,7 +460,9 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
     };
 
     if !Path::new(&key_path).exists() {
-        eprintln!("Keyfile '{key_path}' doesn't exist - make sure to install relevant keyring packages or update config to provide correct path!");
+        eprintln!(
+            "Keyfile '{key_path}' doesn't exist - make sure to install relevant keyring packages or update config to provide correct path!"
+        );
     }
 
     let id = loop {
@@ -476,7 +496,10 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         "Should already mirrored files be re-verified when updating the mirror? (io-intensive!)",
         Some(true),
     )?;
-    let sync = read_bool_from_tty("Should newly written files be written using FSYNC to ensure crash-consistency? (io-intensive!)", Some(true))?;
+    let sync = read_bool_from_tty(
+        "Should newly written files be written using FSYNC to ensure crash-consistency? (io-intensive!)",
+        Some(true),
+    )?;
 
     let mut configs = Vec::with_capacity(extra_repos.len() + 1);
 
@@ -672,7 +695,10 @@ fn action_add_medium(config: &SectionConfigData) -> Result<MediaConfig, Error> {
         "Should mirrored files be re-verified when updating the medium? (io-intensive!)",
         Some(true),
     )?;
-    let sync = read_bool_from_tty("Should newly written files be written using FSYNC to ensure crash-consistency? (io-intensive!)", Some(true))?;
+    let sync = read_bool_from_tty(
+        "Should newly written files be written using FSYNC to ensure crash-consistency? (io-intensive!)",
+        Some(true),
+    )?;
 
     Ok(MediaConfig {
         id,
@@ -845,7 +871,9 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
                     config.set_data(&id, "mirror", mirror_config)?;
                     save_config(&config_file, &config)?;
                     println!("Config entry '{id}' added");
-                    println!("Run \"proxmox-offline-mirror mirror snapshot create --config '{config_file}' '{id}'\" to create a new mirror snapshot.");
+                    println!(
+                        "Run \"proxmox-offline-mirror mirror snapshot create --config '{config_file}' '{id}'\" to create a new mirror snapshot."
+                    );
                 }
             }
             Action::AddMedium => {
@@ -854,7 +882,9 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
                 config.set_data(&id, "medium", media_config)?;
                 save_config(&config_file, &config)?;
                 println!("Config entry '{id}' added");
-                println!("Run \"proxmox-offline-mirror medium sync --config '{config_file}' '{id}'\" to sync mirror snapshots to medium.");
+                println!(
+                    "Run \"proxmox-offline-mirror medium sync --config '{config_file}' '{id}'\" to sync mirror snapshots to medium."
+                );
             }
             Action::AddKey => {
                 let key = action_add_key(&config)?;
@@ -862,7 +892,9 @@ async fn setup(config: Option<String>, _param: Value) -> Result<(), Error> {
                 config.set_data(&id, "subscription", &key)?;
                 save_config(&config_file, &config)?;
                 println!("Config entry '{id}' added");
-                println!("Run \"proxmox-offline-mirror key refresh\" to refresh subscription information");
+                println!(
+                    "Run \"proxmox-offline-mirror key refresh\" to refresh subscription information"
+                );
             }
         }
     }

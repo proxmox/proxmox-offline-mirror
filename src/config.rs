@@ -1,14 +1,14 @@
 use std::path::Path;
 use std::sync::LazyLock;
 
-use anyhow::{bail, Error};
-use proxmox_subscription::{sign::ServerBlob, SubscriptionInfo};
+use anyhow::{Error, bail};
+use proxmox_subscription::{SubscriptionInfo, sign::ServerBlob};
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, ApiStringFormat, ApiType, Updater};
+use proxmox_schema::{ApiStringFormat, ApiType, Updater, api};
 use proxmox_section_config::{SectionConfig, SectionConfigData, SectionConfigPlugin};
 use proxmox_subscription::ProductType;
-use proxmox_sys::fs::{replace_file, CreateOptions};
+use proxmox_sys::fs::{CreateOptions, replace_file};
 
 use crate::types::{
     MEDIA_ID_SCHEMA, MIRROR_ID_SCHEMA, PROXMOX_SERVER_ID_SCHEMA, PROXMOX_SUBSCRIPTION_KEY_SCHEMA,

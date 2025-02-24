@@ -1,13 +1,13 @@
 use std::{env, fs::remove_dir_all, path::Path};
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde_json::Value;
 
 use proxmox_router::cli::{
-    default_table_format_options, format_and_print_result_full, get_output_format, CliCommand,
-    CliCommandMap, ColumnConfig, CommandLineInterface, OUTPUT_FORMAT,
+    CliCommand, CliCommandMap, ColumnConfig, CommandLineInterface, OUTPUT_FORMAT,
+    default_table_format_options, format_and_print_result_full, get_output_format,
 };
-use proxmox_schema::{api, param_bail, ApiType, ArraySchema, ReturnType};
+use proxmox_schema::{ApiType, ArraySchema, ReturnType, api, param_bail};
 
 use proxmox_offline_mirror::{
     config::{MediaConfig, MediaConfigUpdater, MirrorConfig, MirrorConfigUpdater},

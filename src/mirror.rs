@@ -5,20 +5,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use flate2::bufread::GzDecoder;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use nix::libc;
-use proxmox_http::{client::sync::Client, HttpClient, HttpOptions, ProxyConfig};
+use proxmox_http::{HttpClient, HttpOptions, ProxyConfig, client::sync::Client};
 use proxmox_schema::{ApiType, Schema};
 use proxmox_sys::fs::file_get_contents;
 
 use crate::{
+    FetchResult, Progress,
     config::{MirrorConfig, SkipConfig, SubscriptionKey, WeakCryptoConfig},
     convert_repo_line,
     pool::Pool,
-    types::{Diff, Snapshot, SNAPSHOT_REGEX},
-    FetchResult, Progress,
+    types::{Diff, SNAPSHOT_REGEX, Snapshot},
 };
 
 use proxmox_apt::deb822::{

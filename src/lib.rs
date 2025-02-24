@@ -14,7 +14,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use medium::MirrorInfo;
 use proxmox_apt::repositories::{APTRepositoryFileImpl, APTRepositoryImpl};
 use proxmox_apt_api_types::{APTRepository, APTRepositoryFile, APTRepositoryFileType};

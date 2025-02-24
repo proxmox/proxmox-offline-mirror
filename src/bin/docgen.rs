@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use proxmox_offline_mirror::config;
 
 use proxmox_section_config::dump_section_config;

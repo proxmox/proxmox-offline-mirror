@@ -1,17 +1,17 @@
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 
 use sequoia_openpgp::{
+    Cert, KeyHandle,
     cert::CertParser,
     parse::{
+        PacketParser, PacketParserResult, Parse,
         stream::{
             DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationError,
             VerificationHelper, VerifierBuilder,
         },
-        PacketParser, PacketParserResult, Parse,
     },
     policy::StandardPolicy,
     types::HashAlgorithm,
-    Cert, KeyHandle,
 };
 use std::io;
 

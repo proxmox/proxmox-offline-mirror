@@ -1,17 +1,17 @@
 use std::{
     cmp::max,
-    collections::{hash_map::Entry, HashMap},
-    fs::{hard_link, File, Metadata},
+    collections::{HashMap, hash_map::Entry},
+    fs::{File, Metadata, hard_link},
     ops::Deref,
     os::linux::fs::MetadataExt,
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use nix::unistd;
 
 use proxmox_apt::deb822::CheckSums;
-use proxmox_sys::fs::{create_path, file_get_contents, replace_file, CreateOptions};
+use proxmox_sys::fs::{CreateOptions, create_path, file_get_contents, replace_file};
 use proxmox_time::epoch_i64;
 use walkdir::WalkDir;
 
@@ -298,7 +298,9 @@ impl PoolLockGuard<'_> {
 
             if checked_link_count % progress_modulo == 0 || last_progress + 30 < epoch_i64() {
                 last_progress = epoch_i64();
-                println!("Progress: checked {checked_link_count} links; added {added_count} files ({added_size}b) / {link_count} links to target pool");
+                println!(
+                    "Progress: checked {checked_link_count} links; added {added_count} files ({added_size}b) / {link_count} links to target pool"
+                );
             }
         }
         println!(
@@ -350,7 +352,9 @@ impl PoolLockGuard<'_> {
             println!("None found.")
         }
 
-        println!("Syncing done: added {added_count} files ({added_size}b) / {link_count} links to target pool");
+        println!(
+            "Syncing done: added {added_count} files ({added_size}b) / {link_count} links to target pool"
+        );
 
         Ok(())
     }
