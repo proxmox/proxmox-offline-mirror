@@ -2,10 +2,10 @@
 name = "proxmox-offline-mirror"
 version = "0.6.7"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
-edition = "2021"
+edition = "2024"
 license = "AGPL-3"
 description = "Proxmox offline repository mirror and subscription key manager"
-rust-version = "1.80"
+rust-version = "1.85"
 
 exclude = ["debian"]
 
