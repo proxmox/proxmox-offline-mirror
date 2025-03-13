@@ -66,7 +66,7 @@ Recommends: ${cargo:Recommends},
 Suggests: ${cargo:Suggests},
 Provides: ${cargo:Provides},
 Built-Using: ${cargo:Built-Using},
-XB-X-Cargo-Built-Using: ${cargo:X-Cargo-Built-Using}
+Static-Built-Using: ${cargo:Static-Built-Using}
 Description: Proxmox offline repository mirror and subscription key manager
  This package contains the proxmox-offline-mirror tool for managing Proxmox
  offline APT
