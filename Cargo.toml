@@ -31,7 +31,7 @@ proxmox-async = "0.4"
 proxmox-http = { version = "0.9", features = [ "client-sync", "client-trait" ]}
 proxmox-router = { version = "3", features = [ "cli" ], default-features = false }
 proxmox-schema = { version = "4.0", features = [ "api-macro" ] }
-proxmox-section-config = "2"
+proxmox-section-config = "3"
 proxmox-serde = "0.1"
 proxmox-subscription = { version = "0.5.0", features = [ "api-types" ] }
 proxmox-sys = { version = "0.6", features = [ "timer" ] }
