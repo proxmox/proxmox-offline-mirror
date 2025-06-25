@@ -1,5 +1,3 @@
-proxmox-offline-mirror-docs: embedded-javascript-library please use libjs-jquery *usr/share/doc/proxmox-offline-mirror/html/_static/jquery.js*
-proxmox-offline-mirror-docs: embedded-javascript-library please use libjs-underscore *usr/share/doc/proxmox-offline-mirror/html/_static/underscore.js*
 proxmox-offline-mirror-docs: embedded-javascript-library please use sphinx *usr/share/doc/proxmox-offline-mirror/html/_static/doctools.js*
 proxmox-offline-mirror-docs: embedded-javascript-library please use sphinx *usr/share/doc/proxmox-offline-mirror/html/_static/language_data.js*
 proxmox-offline-mirror-docs: embedded-javascript-library please use sphinx *usr/share/doc/proxmox-offline-mirror/html/_static/searchtools.js*
