@@ -1,3 +1,9 @@
+rust-proxmox-offline-mirror (0.7.0) trixie; urgency=medium
+
+  * Re-build for Debian 13 "Trixie" based projects.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 25 Jun 2025 16:33:25 +0200
+
 rust-proxmox-offline-mirror (0.6.7) bookworm; urgency=medium
 
   * pool: fix check for empty directory when unlinking files
