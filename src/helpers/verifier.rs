@@ -33,13 +33,14 @@ impl VerificationHelper for Helper<'_> {
         let mut good = false;
 
         // we don't want compression and/or encryption
-        if structure.len() > 1 || structure.is_empty() {
+        let layers: Vec<_> = structure.iter().collect();
+        if layers.len() > 1 || layers.is_empty() {
             bail!(
                 "unexpected GPG message structure - expected plain signed data, got {} layers!",
-                structure.len()
+                layers.len()
             );
         }
-        let layer = &structure[0];
+        let layer = &layers[0];
         let mut errors = Vec::new();
         match layer {
             MessageLayer::SignatureGroup { results } => {
@@ -81,7 +82,9 @@ impl VerificationHelper for Helper<'_> {
                             }
                         }
                     }
-                    VerificationError::MissingKey { .. } => {} // doesn't contain a cause
+                    VerificationError::MissingKey { .. }
+                    | VerificationError::UnknownSignature { .. } => {} // doesn't contain a cause
+                    _ => {} // we already print the error above in full
                 };
             }
             eprintln!();
