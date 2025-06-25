@@ -12,27 +12,27 @@ exclude = ["debian"]
 [dependencies]
 anyhow = "1.0"
 bzip2 = "0.4"
-flate2 = "1.0.22"
-globset = "0.4.8"
+flate2 = "1.1"
+globset = "0.4.15"
 hex = "0.4.3"
-nix = "0.26.1"
+nix = "0.29"
 openssl = "0.10"
-regex = "1.5.5"
+regex = "1.11"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sequoia-openpgp = "2"
-walkdir = "2.3.1"
+walkdir = "2.5"
 xz2 = "0.1"
 
-proxmox-apt = "0.11"
-proxmox-apt-api-types = "1.0"
-proxmox-async = "0.4"
+proxmox-apt = "0.99"
+proxmox-apt-api-types = "2.0"
+proxmox-async = "0.5"
 proxmox-base64 = "1"
-proxmox-http = { version = "0.9", features = [ "client-sync", "client-trait" ]}
+proxmox-http = { version = "1", features = [ "client-sync", "client-trait" ]}
 proxmox-router = { version = "3", features = [ "cli" ], default-features = false }
-proxmox-schema = { version = "4.0", features = [ "api-macro" ] }
+proxmox-schema = { version = "4.1", features = [ "api-macro" ] }
 proxmox-section-config = "3"
-proxmox-serde = "0.1"
-proxmox-subscription = { version = "0.5.0", features = [ "api-types" ] }
-proxmox-sys = { version = "0.6", features = [ "timer" ] }
+proxmox-serde = "1"
+proxmox-subscription = { version = "1", features = [ "api-types" ] }
+proxmox-sys = { version = "1", features = [ "timer" ] }
 proxmox-time = "2"
