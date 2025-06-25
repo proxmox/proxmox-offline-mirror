@@ -778,7 +778,7 @@ pub fn create_snapshot(
                 );
             }
             Some(key) if key.product() == *product => {
-                let base64 = base64::encode(format!("{}:{}", key.key, key.server_id));
+                let base64 = proxmox_base64::encode(format!("{}:{}", key.key, key.server_id));
                 Some(format!("basic {base64}"))
             }
             Some(key) => {

@@ -244,7 +244,7 @@ async fn add_mirror_key(config: Option<String>, key: String, _param: Value) -> R
     );
 
     if info.key.as_ref() == Some(&data.key) {
-        data.info = Some(base64::encode(serde_json::to_vec(&info)?));
+        data.info = Some(proxmox_base64::encode(serde_json::to_vec(&info)?));
     } else {
         bail!("Server returned subscription info for wrong key.");
     }
@@ -317,7 +317,7 @@ async fn add_key(
 
         if let Some(info) = refreshed.pop() {
             if info.key.as_ref() == Some(&data.key) {
-                data.info = Some(base64::encode(serde_json::to_vec(&info)?));
+                data.info = Some(proxmox_base64::encode(serde_json::to_vec(&info)?));
             } else {
                 bail!("Server returned subscription info for wrong key.");
             }
@@ -448,7 +448,7 @@ pub async fn refresh_keys(config: Option<String>, key: Option<String>) -> Result
                         info.status,
                         info.message.as_ref().unwrap_or(&"-".to_string())
                     );
-                    key.info = Some(base64::encode(serde_json::to_vec(&info)?));
+                    key.info = Some(proxmox_base64::encode(serde_json::to_vec(&info)?));
                     config.set_data(&key.key.clone(), "subscription", key)?;
                 }
                 Err(err) => eprintln!(
@@ -481,7 +481,7 @@ pub async fn refresh_keys(config: Option<String>, key: Option<String>) -> Result
                 );
                 let key = key.clone();
                 let mut data: SubscriptionKey = config.lookup("subscription", &key)?;
-                data.info = Some(base64::encode(serde_json::to_vec(&info)?));
+                data.info = Some(proxmox_base64::encode(serde_json::to_vec(&info)?));
                 config.set_data(&key, "subscription", data)?;
             }
             None => bail!("Server returned subscription key which was not queried!"),

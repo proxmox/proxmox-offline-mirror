@@ -28,7 +28,7 @@ fn set_subscription_key(
     product: &ProductType,
     subscription: &SubscriptionInfo,
 ) -> Result<String, Error> {
-    let data = base64::encode(serde_json::to_vec(subscription)?);
+    let data = proxmox_base64::encode(serde_json::to_vec(subscription)?);
 
     let cmd = match product {
         ProductType::Pve => {

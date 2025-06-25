@@ -791,7 +791,7 @@ fn action_add_key(config: &SectionConfigData) -> Result<SubscriptionKey, Error> 
         );
 
         if info.key.as_ref() == Some(&data.key) {
-            data.info = Some(base64::encode(serde_json::to_vec(&info)?));
+            data.info = Some(proxmox_base64::encode(serde_json::to_vec(&info)?));
         } else {
             bail!("Server returned subscription info for wrong key.");
         }

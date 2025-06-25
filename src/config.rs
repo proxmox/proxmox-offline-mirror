@@ -252,7 +252,7 @@ impl SubscriptionKey {
     pub fn info(&self) -> Result<Option<SubscriptionInfo>, Error> {
         match self.info.as_ref() {
             Some(info) => {
-                let info = base64::decode(info)?;
+                let info = proxmox_base64::decode(info)?;
                 let info = serde_json::from_slice(&info)?;
                 Ok(Some(info))
             }
