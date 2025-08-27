@@ -1,3 +1,10 @@
+rust-proxmox-offline-mirror (0.7.1) trixie; urgency=medium
+
+  * fix #6673: re-build with newer proxmox-apt crate to fix mirroring
+    trixie security repo
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 27 Aug 2025 23:57:31 +0200
+
 rust-proxmox-offline-mirror (0.7.0) trixie; urgency=medium
 
   * Re-build for Debian 13 "Trixie" based projects.

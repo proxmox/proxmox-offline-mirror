@@ -1,6 +1,6 @@
 [package]
 name = "proxmox-offline-mirror"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Proxmox Support Team <support@proxmox.com>"]
 edition = "2024"
 license = "AGPL-3"
