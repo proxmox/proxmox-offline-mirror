@@ -24,7 +24,7 @@ sequoia-openpgp = "2"
 walkdir = "2.5"
 xz2 = "0.1"
 
-proxmox-apt = "0.99"
+proxmox-apt = "0.99.3"
 proxmox-apt-api-types = "2.0"
 proxmox-async = "0.5"
 proxmox-base64 = "1"
