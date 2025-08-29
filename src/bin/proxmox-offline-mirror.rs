@@ -46,6 +46,7 @@ impl Display for Distro {
 }
 
 enum Release {
+    Trixie,
     Bookworm,
     Bullseye,
     Buster,
@@ -54,6 +55,7 @@ enum Release {
 impl Display for Release {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Release::Trixie => write!(f, "trixie"),
             Release::Bookworm => write!(f, "bookworm"),
             Release::Bullseye => write!(f, "bullseye"),
             Release::Buster => write!(f, "buster"),
@@ -135,6 +137,17 @@ fn derive_debian_repo(
         skip_sections,
     };
     let url = match (release, variant) {
+        (Release::Trixie, DebianVariant::Main) => "http://deb.debian.org/debian trixie",
+        (Release::Trixie, DebianVariant::Security) => {
+            "http://deb.debian.org/debian-security trixie-security"
+        }
+        (Release::Trixie, DebianVariant::Updates) => "http://deb.debian.org/debian trixie-updates",
+        (Release::Trixie, DebianVariant::Backports) => {
+            "http://deb.debian.org/debian trixie-backports"
+        }
+        (Release::Trixie, DebianVariant::Debug) => {
+            "http://deb.debian.org/debian-debug trixie-debug"
+        }
         (Release::Bookworm, DebianVariant::Main) => "http://deb.debian.org/debian bookworm",
         (Release::Bookworm, DebianVariant::Security) => {
             "http://deb.debian.org/debian-security bookworm-security"
@@ -176,6 +189,13 @@ fn derive_debian_repo(
 
     let url = format!("{url} {components}");
     let key = match (release, variant) {
+        (Release::Trixie, DebianVariant::Security) => {
+            "/usr/share/keyrings/debian-archive-trixie-security-automatic.gpg"
+        }
+        (Release::Trixie, DebianVariant::Updates) | (Release::Trixie, DebianVariant::Backports) => {
+            "/usr/share/keyrings/debian-archive-trixie-automatic.gpg"
+        }
+        (Release::Trixie, _) => "/usr/share/keyrings/debian-archive-trixie-stable.gpg",
         (Release::Bookworm, DebianVariant::Security) => {
             "/usr/share/keyrings/debian-archive-bookworm-security-automatic.gpg"
         }
@@ -217,6 +237,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
         let dist = read_selection_from_tty("Select distro to mirror", distros, None)?;
 
         let releases = &[
+            (Release::Trixie, "Trixie"),
             (Release::Bookworm, "Bookworm"),
             (Release::Bullseye, "Bullseye"),
             (Release::Buster, "Buster"),
@@ -238,7 +259,9 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     read_selection_from_tty("Select repository variant", variants, Some(0))?;
 
                 let default_components = match release {
-                    Release::Bookworm => "main contrib non-free non-free-firmware",
+                    Release::Bookworm | Release::Trixie => {
+                        "main contrib non-free non-free-firmware"
+                    }
                     _ => "main contrib non-free",
                 };
 
@@ -259,6 +282,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 }
 
                 let releases = match release {
+                    Release::Trixie => vec![(CephRelease::Squid, "Squid (19.x)")],
                     Release::Bookworm => vec![
                         (CephRelease::Quincy, "Quincy (17.x)"),
                         (CephRelease::Reef, "Reef (18.x)"),
@@ -286,41 +310,46 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Some(releases.len() - 1),
                 )?;
 
-                let (base_url, components) = if matches!(release, Release::Bookworm) {
-                    let variants = &[
-                        (ProxmoxVariant::Enterprise, "Enterprise repository"),
-                        (ProxmoxVariant::NoSubscription, "No-Subscription repository"),
-                        (ProxmoxVariant::Test, "Test repository"),
-                    ];
+                let (base_url, components) =
+                    if matches!(release, Release::Bookworm | Release::Trixie) {
+                        let variants = &[
+                            (ProxmoxVariant::Enterprise, "Enterprise repository"),
+                            (ProxmoxVariant::NoSubscription, "No-Subscription repository"),
+                            (ProxmoxVariant::Test, "Test repository"),
+                        ];
 
-                    let variant =
-                        read_selection_from_tty("Select repository variant", variants, Some(0))?;
+                        let variant = read_selection_from_tty(
+                            "Select repository variant",
+                            variants,
+                            Some(0),
+                        )?;
 
-                    match variant {
-                        ProxmoxVariant::Enterprise => {
-                            use_subscription = Some(ProductType::Pve);
-                            (
-                                "https://enterprise.proxmox.com/debian/ceph",
-                                "enterprise".to_string(),
-                            )
+                        match variant {
+                            ProxmoxVariant::Enterprise => {
+                                use_subscription = Some(ProductType::Pve);
+                                (
+                                    "https://enterprise.proxmox.com/debian/ceph",
+                                    "enterprise".to_string(),
+                                )
+                            }
+                            ProxmoxVariant::NoSubscription => (
+                                "http://download.proxmox.com/debian/ceph",
+                                "no-subscription".to_string(),
+                            ),
+                            ProxmoxVariant::Test => (
+                                "http://download.proxmox.com/debian/ceph",
+                                "test".to_string(),
+                            ),
                         }
-                        ProxmoxVariant::NoSubscription => (
+                    } else {
+                        (
                             "http://download.proxmox.com/debian/ceph",
-                            "no-subscription".to_string(),
-                        ),
-                        ProxmoxVariant::Test => (
-                            "http://download.proxmox.com/debian/ceph",
-                            "test".to_string(),
-                        ),
-                    }
-                } else {
-                    (
-                        "http://download.proxmox.com/debian/ceph",
-                        read_string_from_tty("Enter repository components", Some("main test"))?,
-                    )
-                };
+                            read_string_from_tty("Enter repository components", Some("main test"))?,
+                        )
+                    };
 
                 let key = match release {
+                    Release::Trixie => "/usr/share/keyrings/proxmox-release-trixie.gpg",
                     Release::Bookworm => "/etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg",
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
@@ -353,6 +382,15 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
                 // TODO enterprise query for key!
                 let url = match (release, variant) {
+                    (Release::Trixie, ProxmoxVariant::Enterprise) => format!(
+                        "https://enterprise.proxmox.com/debian/{product} trixie {product}-enterprise"
+                    ),
+                    (Release::Trixie, ProxmoxVariant::NoSubscription) => format!(
+                        "http://download.proxmox.com/debian/{product} trixie {product}-no-subscription"
+                    ),
+                    (Release::Trixie, ProxmoxVariant::Test) => {
+                        format!("http://download.proxmox.com/debian/{product} trixie {product}-test")
+                    }
                     (Release::Bookworm, ProxmoxVariant::Enterprise) => format!(
                         "https://enterprise.proxmox.com/debian/{product} bookworm {product}-enterprise"
                     ),
@@ -390,6 +428,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 };
 
                 let key = match release {
+                    Release::Trixie => "/usr/share/keyrings/proxmox-release-trixie.gpg",
                     Release::Bookworm => "/etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg",
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
