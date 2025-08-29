@@ -41,7 +41,8 @@ Debian Package Repositories
 
 All Debian based systems use APT as a package management tool. The lists of repositories are
 defined in ``/etc/apt/sources.list`` and the ``.list`` files found in the ``/etc/apt/sources.d/``
-directory. Updates can be installed directly with the ``apt`` command line tool, or via the GUI.
+directory. Newer systems will also use ``.sources`` file in the new deb822 format found at the
+same location. Updates can be installed directly with the ``apt`` command line tool, or via the GUI.
 
 APT ``sources.list`` files list one package repository per line, with the most preferred source
 listed first. Empty lines are ignored, and a ``#`` character anywhere on a line marks the remainder
@@ -53,8 +54,8 @@ of that line as a comment. The information available from the configured sources
 SecureApt
 ^^^^^^^^^
 
-The `Release` files in the repositories are signed with GnuPG. APT is using these signatures to
-verify that all packages are from a trusted source.
+The `Release` files in the repositories are signed with GnuPG. APT is using
+these signatures to verify that all packages are from a trusted source.
 
 .. tip:: If you install Proxmox Offline Mirror on an existing Proxmox VE, Proxmox Backup Server or
    Proxmox Mail Gateway, the verification key will already be present.
@@ -64,22 +65,30 @@ the following commands:
 
 .. code-block:: console
 
- # wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg \
-   -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+ # wget https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg -O /usr/share/keyrings/proxmox-archive-keyring.gpg
 
-Verify the SHA512 checksum afterwards with the expected output below:
+.. note:: The `wget` command above adds the keyring for Proxmox releases based on Debian Trixie. Once
+   the `proxmox-archive-keyring` package is installed, it will manage this file. At that point, the
+   hashes below may no longer match the hashes of this file, as keys for new Proxmox releases get
+   added or removed. This is intended, `apt` will ensure that only trusted keys are being used.
+   **Modifying this file is discouraged once `proxmox-archive-keyring` is installed.**
 
-.. code-block:: console
-
- # sha512sum /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
- 7da6fe34168adc6e479327ba517796d4702fa2f8b4f0a9833f5ea6e6b48f6507a6da403a274fe201595edc86a84463d50383d07f64bdde2e3658108db7d6dc87  /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
-
-or the md5sum, with the expected output below:
+Verify the SHA256 checksum afterwards with the expected output below:
 
 .. code-block:: console
 
- # md5sum /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
- 41558dc019ef90bd0f6067644a51cf5b  /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+ # sha256sum /usr/share/keyrings/proxmox-archive-keyring.gpg
+ 136673be77aba35dcce385b28737689ad64fd785a797e57897589aed08db6e45 /usr/share/keyrings/proxmox-archive-keyring.gpg
+
+and the md5sum, with the expected output below:
+
+.. code-block:: console
+
+ # md5sum /usr/share/keyrings/proxmox-archive-keyring.gpg
+ 77c8b1166d15ce8350102ab1bca2fcbf /usr/share/keyrings/proxmox-archive-keyring.gpg
+
+.. note:: Make sure that the path that you download the key to, matches the
+   path specified in the ``Signed-By:`` lines in your repository stanzas below.
 
 .. _package_repositories_client_only_apt:
 
@@ -101,6 +110,25 @@ Proxmox systems.
 .. hint:: While you could also use a Proxmox VE, Proxmox Backup Server or Proxmox Mail Gateway
    repository, those ship some updated packages from Debian native packages, which would get pulled
    in, even if not required for the offline mirroring.
+
+Repository for Debian 13 (Trixie) based releases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Here are the actual steps for a generic Debian 13 (Bookworm) based system.
+
+First edit the file ``/etc/apt/sources.list.d/pbs-client.sources`` and add the following snippet:
+
+.. code-block:: debian.sources
+  :caption: File: ``/etc/apt/sources.list.d/pbs-client.sources``
+
+  Types: deb
+  URIs: http://download.proxmox.com/debian/pbs-client
+  Suites: trixie
+  Components: main
+  Signed-by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+
+Now you should be able to install the ``proxmox-offline-mirror`` package, see
+:ref:`apt_install_pom`.
 
 Repository for Debian 12 (Bookworm) based releases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
