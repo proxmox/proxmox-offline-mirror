@@ -45,6 +45,7 @@ impl Display for Distro {
     }
 }
 
+#[derive(PartialEq, Eq)]
 enum Release {
     Trixie,
     Bookworm,
@@ -63,6 +64,7 @@ impl Display for Release {
     }
 }
 
+#[derive(PartialEq, Eq)]
 enum DebianVariant {
     Main,
     Security,
@@ -136,54 +138,26 @@ fn derive_debian_repo(
         skip_packages,
         skip_sections,
     };
-    let url = match (release, variant) {
-        (Release::Trixie, DebianVariant::Main) => "http://deb.debian.org/debian trixie",
-        (Release::Trixie, DebianVariant::Security) => {
-            "http://deb.debian.org/debian-security trixie-security"
-        }
-        (Release::Trixie, DebianVariant::Updates) => "http://deb.debian.org/debian trixie-updates",
-        (Release::Trixie, DebianVariant::Backports) => {
-            "http://deb.debian.org/debian trixie-backports"
-        }
-        (Release::Trixie, DebianVariant::Debug) => {
-            "http://deb.debian.org/debian-debug trixie-debug"
-        }
-        (Release::Bookworm, DebianVariant::Main) => "http://deb.debian.org/debian bookworm",
-        (Release::Bookworm, DebianVariant::Security) => {
-            "http://deb.debian.org/debian-security bookworm-security"
-        }
-        (Release::Bookworm, DebianVariant::Updates) => {
-            "http://deb.debian.org/debian bookworm-updates"
-        }
-        (Release::Bookworm, DebianVariant::Backports) => {
-            "http://deb.debian.org/debian bookworm-backports"
-        }
-        (Release::Bookworm, DebianVariant::Debug) => {
-            "http://deb.debian.org/debian-debug bookworm-debug"
-        }
-        (Release::Bullseye, DebianVariant::Main) => "http://deb.debian.org/debian bullseye",
-        (Release::Bullseye, DebianVariant::Security) => {
-            "http://deb.debian.org/debian-security bullseye-security"
-        }
-        (Release::Bullseye, DebianVariant::Updates) => {
-            "http://deb.debian.org/debian bullseye-updates"
-        }
-        (Release::Bullseye, DebianVariant::Backports) => {
-            "http://deb.debian.org/debian bullseye-backports"
-        }
-        (Release::Bullseye, DebianVariant::Debug) => {
-            "http://deb.debian.org/debian-debug bullseye-debug"
-        }
-        (Release::Buster, DebianVariant::Main) => "http://deb.debian.org/debian buster",
-        (Release::Buster, DebianVariant::Security) => {
-            "http://deb.debian.org/debian-security buster/updates"
-        }
-        (Release::Buster, DebianVariant::Updates) => "http://deb.debian.org/debian buster-updates",
-        (Release::Buster, DebianVariant::Backports) => {
-            "http://deb.debian.org/debian buster-backports"
-        }
-        (Release::Buster, DebianVariant::Debug) => {
-            "http://deb.debian.org/debian-debug buster-debug"
+    let url = if *release == Release::Buster && *variant == DebianVariant::Security {
+        // non-standard security repo
+        "http://deb.debian.org/debian-security buster/updates".to_string()
+    } else {
+        match variant {
+            DebianVariant::Main => {
+                format!("http://deb.debian.org/debian {release}")
+            }
+            DebianVariant::Security => {
+                format!("http://deb.debian.org/debian-security {release}-security")
+            }
+            DebianVariant::Updates => {
+                format!("http://deb.debian.org/debian {release}-updates")
+            }
+            DebianVariant::Backports => {
+                format!("http://deb.debian.org/debian {release}-backports")
+            }
+            DebianVariant::Debug => {
+                format!("http://deb.debian.org/debian-debug {release}-debug")
+            }
         }
     };
 
@@ -389,7 +363,9 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                         "http://download.proxmox.com/debian/{product} trixie {product}-no-subscription"
                     ),
                     (Release::Trixie, ProxmoxVariant::Test) => {
-                        format!("http://download.proxmox.com/debian/{product} trixie {product}-test")
+                        format!(
+                            "http://download.proxmox.com/debian/{product} trixie {product}-test"
+                        )
                     }
                     (Release::Bookworm, ProxmoxVariant::Enterprise) => format!(
                         "https://enterprise.proxmox.com/debian/{product} bookworm {product}-enterprise"
