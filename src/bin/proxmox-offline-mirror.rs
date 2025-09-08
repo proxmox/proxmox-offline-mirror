@@ -162,26 +162,27 @@ fn derive_debian_repo(
     };
 
     let url = format!("{url} {components}");
+
     let key = match (release, variant) {
         (Release::Trixie, DebianVariant::Security) => {
-            "/usr/share/keyrings/debian-archive-trixie-security-automatic.gpg"
+            "/usr/share/keyrings/debian-archive-trixie-security-automatic.pgp"
         }
         (Release::Trixie, DebianVariant::Updates) | (Release::Trixie, DebianVariant::Backports) => {
-            "/usr/share/keyrings/debian-archive-trixie-automatic.gpg"
+            "/usr/share/keyrings/debian-archive-trixie-automatic.pgp"
         }
-        (Release::Trixie, _) => "/usr/share/keyrings/debian-archive-trixie-stable.gpg",
+        (Release::Trixie, _) => "/usr/share/keyrings/debian-archive-trixie-stable.pgp",
         (Release::Bookworm, DebianVariant::Security) => {
-            "/usr/share/keyrings/debian-archive-bookworm-security-automatic.gpg"
+            "/usr/share/keyrings/debian-archive-bookworm-security-automatic.pgp"
         }
         (Release::Bookworm, DebianVariant::Updates)
         | (Release::Bookworm, DebianVariant::Backports) => {
-            "/usr/share/keyrings/debian-archive-bookworm-automatic.gpg"
+            "/usr/share/keyrings/debian-archive-bookworm-automatic.pgp"
         }
-        (Release::Bookworm, _) => "/usr/share/keyrings/debian-archive-bookworm-stable.gpg",
+        (Release::Bookworm, _) => "/usr/share/keyrings/debian-archive-bookworm-stable.pgp",
         (Release::Bullseye, DebianVariant::Security) => {
-            "/usr/share/keyrings/debian-archive-bullseye-security-automatic.gpg"
+            "/usr/share/keyrings/debian-archive-bullseye-security-automatic.pgp"
         }
-        (Release::Bullseye, _) => "/usr/share/keyrings/debian-archive-bullseye-automatic.gpg",
+        (Release::Bullseye, _) => "/usr/share/keyrings/debian-archive-bullseye-automatic.pgp",
         (Release::Buster, DebianVariant::Security) => {
             "/usr/share/keyrings/debian-archive-buster-security-automatic.gpg"
         }
