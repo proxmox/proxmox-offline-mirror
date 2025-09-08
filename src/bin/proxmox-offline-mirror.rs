@@ -52,6 +52,16 @@ enum Release {
     Bullseye = 11,
 }
 
+impl Release {
+    fn proxmox_key_path(&self) -> String {
+        if self >= &Release::Trixie {
+            format!("/usr/share/keyrings/proxmox-release-{self}.gpg")
+        } else {
+            "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg".to_string()
+        }
+    }
+}
+
 impl Display for Release {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -301,11 +311,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                         )
                     };
 
-                let key = match release {
-                    Release::Trixie => "/usr/share/keyrings/proxmox-release-trixie.gpg",
-                    Release::Bookworm => "/usr/share/keyrings/proxmox-release-bookworm.gpg",
-                    Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
-                };
+                let key = release.proxmox_key_path();
 
                 let ceph_release = match ceph_release {
                     CephRelease::Octopus => "octopus",
@@ -318,7 +324,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                 let url = format!("{base_url}-{ceph_release} {release} {components}");
                 let suggested_id = format!("ceph_{ceph_release}_{release}");
 
-                (url, key.to_string(), suggested_id, SkipConfig::default())
+                (url, key, suggested_id, SkipConfig::default())
             }
             product => {
                 let variants = &[
@@ -358,11 +364,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     _ => None,
                 };
 
-                let key = match release {
-                    Release::Trixie => "/usr/share/keyrings/proxmox-release-trixie.gpg",
-                    Release::Bookworm => "/usr/share/keyrings/proxmox-release-bookworm.gpg",
-                    Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
-                };
+                let key = release.proxmox_key_path();
 
                 let suggested_id = format!("{product}_{release}_{variant}");
 
@@ -371,7 +373,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Some(true),
                 )?;
 
-                (url, key.to_string(), suggested_id, SkipConfig::default())
+                (url, key, suggested_id, SkipConfig::default())
             }
         };
 
