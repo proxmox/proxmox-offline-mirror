@@ -30,7 +30,7 @@ proxmox-async = "0.5"
 proxmox-base64 = "1"
 proxmox-http = { version = "1", features = [ "client-sync", "client-trait" ]}
 proxmox-router = { version = "3", features = [ "cli" ], default-features = false }
-proxmox-schema = { version = "4.1", features = [ "api-macro" ] }
+proxmox-schema = { version = "5", features = [ "api-macro" ] }
 proxmox-section-config = "3"
 proxmox-serde = "1"
 proxmox-subscription = { version = "1", features = [ "api-types" ] }
