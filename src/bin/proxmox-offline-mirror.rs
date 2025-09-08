@@ -356,44 +356,23 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     read_selection_from_tty("Select repository variant", variants, Some(0))?;
 
                 // TODO enterprise query for key!
-                let url = match (release, variant) {
-                    (Release::Trixie, ProxmoxVariant::Enterprise) => format!(
-                        "https://enterprise.proxmox.com/debian/{product} trixie {product}-enterprise"
+                let url = match variant {
+                    ProxmoxVariant::Enterprise => format!(
+                        "https://enterprise.proxmox.com/debian/{product} {release} {product}-enterprise"
                     ),
-                    (Release::Trixie, ProxmoxVariant::NoSubscription) => format!(
-                        "http://download.proxmox.com/debian/{product} trixie {product}-no-subscription"
+                    ProxmoxVariant::NoSubscription => format!(
+                        "http://download.proxmox.com/debian/{product} {release} {product}-no-subscription"
                     ),
-                    (Release::Trixie, ProxmoxVariant::Test) => {
-                        format!(
-                            "http://download.proxmox.com/debian/{product} trixie {product}-test"
-                        )
-                    }
-                    (Release::Bookworm, ProxmoxVariant::Enterprise) => format!(
-                        "https://enterprise.proxmox.com/debian/{product} bookworm {product}-enterprise"
-                    ),
-                    (Release::Bookworm, ProxmoxVariant::NoSubscription) => format!(
-                        "http://download.proxmox.com/debian/{product} bookworm {product}-no-subscription"
-                    ),
-                    (Release::Bookworm, ProxmoxVariant::Test) => format!(
-                        "http://download.proxmox.com/debian/{product} bookworm {product}test"
-                    ),
-                    (Release::Bullseye, ProxmoxVariant::Enterprise) => format!(
-                        "https://enterprise.proxmox.com/debian/{product} bullseye {product}-enterprise"
-                    ),
-                    (Release::Bullseye, ProxmoxVariant::NoSubscription) => format!(
-                        "http://download.proxmox.com/debian/{product} bullseye {product}-no-subscription"
-                    ),
-                    (Release::Bullseye, ProxmoxVariant::Test) => format!(
-                        "http://download.proxmox.com/debian/{product} bullseye {product}test"
-                    ),
-                    (Release::Buster, ProxmoxVariant::Enterprise) => format!(
-                        "https://enterprise.proxmox.com/debian/{product} buster {product}-enterprise"
-                    ),
-                    (Release::Buster, ProxmoxVariant::NoSubscription) => format!(
-                        "http://download.proxmox.com/debian/{product} buster {product}-no-subscription"
-                    ),
-                    (Release::Buster, ProxmoxVariant::Test) => {
-                        format!("http://download.proxmox.com/debian/{product} buster {product}test")
+                    ProxmoxVariant::Test => {
+                        if release >= &Release::Trixie {
+                            format!(
+                                "http://download.proxmox.com/debian/{product} {release} {product}-test"
+                            )
+                        } else {
+                            format!(
+                                "http://download.proxmox.com/debian/{product} {release} {product}test"
+                            )
+                        }
                     }
                 };
 
