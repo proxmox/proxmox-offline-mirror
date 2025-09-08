@@ -325,7 +325,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
                 let key = match release {
                     Release::Trixie => "/usr/share/keyrings/proxmox-release-trixie.gpg",
-                    Release::Bookworm => "/etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg",
+                    Release::Bookworm => "/usr/share/keyrings/proxmox-release-bookworm.gpg",
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
                 };
@@ -406,7 +406,7 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
 
                 let key = match release {
                     Release::Trixie => "/usr/share/keyrings/proxmox-release-trixie.gpg",
-                    Release::Bookworm => "/etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg",
+                    Release::Bookworm => "/usr/share/keyrings/proxmox-release-bookworm.gpg",
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
                     Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
                 };
