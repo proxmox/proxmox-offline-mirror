@@ -50,7 +50,6 @@ enum Release {
     Trixie = 13,
     Bookworm = 12,
     Bullseye = 11,
-    Buster = 10,
 }
 
 impl Display for Release {
@@ -59,7 +58,6 @@ impl Display for Release {
             Release::Trixie => write!(f, "trixie"),
             Release::Bookworm => write!(f, "bookworm"),
             Release::Bullseye => write!(f, "bullseye"),
-            Release::Buster => write!(f, "buster"),
         }
     }
 }
@@ -138,26 +136,21 @@ fn derive_debian_repo(
         skip_packages,
         skip_sections,
     };
-    let url = if *release == Release::Buster && *variant == DebianVariant::Security {
-        // non-standard security repo
-        "http://deb.debian.org/debian-security buster/updates".to_string()
-    } else {
-        match variant {
-            DebianVariant::Main => {
-                format!("http://deb.debian.org/debian {release}")
-            }
-            DebianVariant::Security => {
-                format!("http://deb.debian.org/debian-security {release}-security")
-            }
-            DebianVariant::Updates => {
-                format!("http://deb.debian.org/debian {release}-updates")
-            }
-            DebianVariant::Backports => {
-                format!("http://deb.debian.org/debian {release}-backports")
-            }
-            DebianVariant::Debug => {
-                format!("http://deb.debian.org/debian-debug {release}-debug")
-            }
+    let url = match variant {
+        DebianVariant::Main => {
+            format!("http://deb.debian.org/debian {release}")
+        }
+        DebianVariant::Security => {
+            format!("http://deb.debian.org/debian-security {release}-security")
+        }
+        DebianVariant::Updates => {
+            format!("http://deb.debian.org/debian {release}-updates")
+        }
+        DebianVariant::Backports => {
+            format!("http://deb.debian.org/debian {release}-backports")
+        }
+        DebianVariant::Debug => {
+            format!("http://deb.debian.org/debian-debug {release}-debug")
         }
     };
 
@@ -183,10 +176,6 @@ fn derive_debian_repo(
             "/usr/share/keyrings/debian-archive-bullseye-security-automatic.pgp"
         }
         (Release::Bullseye, _) => "/usr/share/keyrings/debian-archive-bullseye-automatic.pgp",
-        (Release::Buster, DebianVariant::Security) => {
-            "/usr/share/keyrings/debian-archive-buster-security-automatic.gpg"
-        }
-        (Release::Buster, _) => "/usr/share/keyrings/debian-archive-buster-stable.gpg",
     };
 
     let suggested_id = format!("debian_{release}_{variant}");
@@ -215,7 +204,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
             (Release::Trixie, "Trixie"),
             (Release::Bookworm, "Bookworm"),
             (Release::Bullseye, "Bullseye"),
-            (Release::Buster, "Buster"),
         ];
         let release = read_selection_from_tty("Select release", releases, Some(0))?;
 
@@ -247,8 +235,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
             }
             Distro::PveCeph => {
                 enum CephRelease {
-                    Luminous,
-                    Nautilus,
                     Octopus,
                     Pacific,
                     Quincy,
@@ -268,13 +254,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                             (CephRelease::Octopus, "Octopus (15.x)"),
                             (CephRelease::Pacific, "Pacific (16.x)"),
                             (CephRelease::Quincy, "Quincy (17.x)"),
-                        ]
-                    }
-                    Release::Buster => {
-                        vec![
-                            (CephRelease::Luminous, "Luminous (12.x)"),
-                            (CephRelease::Nautilus, "Nautilus (14.x)"),
-                            (CephRelease::Octopus, "Octopus (15.x)"),
                         ]
                     }
                 };
@@ -327,12 +306,9 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Release::Trixie => "/usr/share/keyrings/proxmox-release-trixie.gpg",
                     Release::Bookworm => "/usr/share/keyrings/proxmox-release-bookworm.gpg",
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
-                    Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
                 };
 
                 let ceph_release = match ceph_release {
-                    CephRelease::Luminous => "luminous",
-                    CephRelease::Nautilus => "nautilus",
                     CephRelease::Octopus => "octopus",
                     CephRelease::Pacific => "pacific",
                     CephRelease::Quincy => "quincy",
@@ -387,7 +363,6 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     Release::Trixie => "/usr/share/keyrings/proxmox-release-trixie.gpg",
                     Release::Bookworm => "/usr/share/keyrings/proxmox-release-bookworm.gpg",
                     Release::Bullseye => "/etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg",
-                    Release::Buster => "/etc/apt/trusted.gpg.d/proxmox-release-buster.gpg",
                 };
 
                 let suggested_id = format!("{product}_{release}_{variant}");
