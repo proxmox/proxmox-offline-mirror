@@ -45,12 +45,12 @@ impl Display for Distro {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 enum Release {
-    Trixie,
-    Bookworm,
-    Bullseye,
-    Buster,
+    Trixie = 13,
+    Bookworm = 12,
+    Bullseye = 11,
+    Buster = 10,
 }
 
 impl Display for Release {
