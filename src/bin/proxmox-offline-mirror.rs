@@ -197,10 +197,8 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
     let mut use_subscription = None;
     let mut extra_repos = Vec::new();
 
-    let (repository, key_path, architectures, suggested_id, skip) = if read_bool_from_tty(
-        "Guided Setup",
-        Some(true),
-    )? {
+    let guided = read_bool_from_tty("Guided Setup", Some(true))?;
+    let (repository, key_path, architectures, suggested_id, skip) = if guided {
         let distros = &[
             (Distro::Pve, "Proxmox VE"),
             (Distro::Pbs, "Proxmox Backup Server"),
