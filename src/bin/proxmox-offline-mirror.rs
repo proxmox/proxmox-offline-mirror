@@ -104,8 +104,19 @@ impl Display for ProxmoxVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ProxmoxVariant::Enterprise => write!(f, "enterprise"),
-            ProxmoxVariant::NoSubscription => write!(f, "no_subscription"),
+            ProxmoxVariant::NoSubscription => write!(f, "no-subscription"),
             ProxmoxVariant::Test => write!(f, "test"),
+        }
+    }
+}
+
+impl ProxmoxVariant {
+    fn base_url(&self) -> &str {
+        match self {
+            ProxmoxVariant::Enterprise => "https://enterprise.proxmox.com/debian",
+            ProxmoxVariant::NoSubscription | ProxmoxVariant::Test => {
+                "http://download.proxmox.com/debian"
+            }
         }
     }
 }
@@ -285,26 +296,19 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                             Some(0),
                         )?;
 
-                        match variant {
-                            ProxmoxVariant::Enterprise => {
-                                use_subscription = Some(ProductType::Pve);
-                                (
-                                    "https://enterprise.proxmox.com/debian/ceph",
-                                    "enterprise".to_string(),
-                                )
-                            }
-                            ProxmoxVariant::NoSubscription => (
-                                "http://download.proxmox.com/debian/ceph",
-                                "no-subscription".to_string(),
-                            ),
-                            ProxmoxVariant::Test => (
-                                "http://download.proxmox.com/debian/ceph",
-                                "test".to_string(),
-                            ),
+                        if variant == &ProxmoxVariant::Enterprise {
+                            use_subscription = Some(ProductType::Pve);
                         }
+                        (
+                            format!("{url}/{dist}", url = variant.base_url()),
+                            variant.to_string(),
+                        )
                     } else {
                         (
-                            "http://download.proxmox.com/debian/ceph",
+                            format!(
+                                "{url}/{dist}",
+                                url = ProxmoxVariant::NoSubscription.base_url()
+                            ),
                             read_string_from_tty("Enter repository components", Some("main test"))?,
                         )
                     };
@@ -335,24 +339,11 @@ fn action_add_mirror(config: &SectionConfigData) -> Result<Vec<MirrorConfig>, Er
                     read_selection_from_tty("Select repository variant", variants, Some(0))?;
 
                 // TODO enterprise query for key!
-                let url = match variant {
-                    ProxmoxVariant::Enterprise => format!(
-                        "https://enterprise.proxmox.com/debian/{product} {release} {product}-enterprise"
-                    ),
-                    ProxmoxVariant::NoSubscription => format!(
-                        "http://download.proxmox.com/debian/{product} {release} {product}-no-subscription"
-                    ),
-                    ProxmoxVariant::Test => {
-                        if release >= &Release::Trixie {
-                            format!(
-                                "http://download.proxmox.com/debian/{product} {release} {product}-test"
-                            )
-                        } else {
-                            format!(
-                                "http://download.proxmox.com/debian/{product} {release} {product}test"
-                            )
-                        }
-                    }
+                let base_url = variant.base_url();
+                let url = if variant == &ProxmoxVariant::Test && release < &Release::Trixie {
+                    format!("{base_url}/{product} {release} {product}{variant}")
+                } else {
+                    format!("{base_url}/{product} {release} {product}-{variant}")
                 };
 
                 use_subscription = match (product, variant) {
